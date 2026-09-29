@@ -153,7 +153,7 @@ telegram_license_guard_bin_path() {
 }
 
 telegram_license_trusted_default_api_url() {
-  printf '%s\n' "https://autoscript-license.minidecrypt.workers.dev/api/v1/license/check"
+  printf '%s\n' "https://autoscript-license.worker-balancer-mang.workers.dev/api/v1/license/check"
 }
 
 telegram_license_config_file_path() {

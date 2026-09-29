@@ -22,7 +22,7 @@ autoscript_license_installed_bin_path() {
 }
 
 autoscript_license_trusted_default_api_url() {
-  printf '%s\n' "https://autoscript-license.minidecrypt.workers.dev/api/v1/license/check"
+  printf '%s\n' "https://autoscript-license.worker-balancer-mang.workers.dev/api/v1/license/check"
 }
 
 autoscript_license_config_file_path() {

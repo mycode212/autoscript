@@ -20,7 +20,7 @@ manage_license_config_get() {
 }
 
 manage_license_trusted_default_api_url() {
-  printf '%s\n' "https://autoscript-license.minidecrypt.workers.dev/api/v1/license/check"
+  printf '%s\n' "https://autoscript-license.worker-balancer-mang.workers.dev/api/v1/license/check"
 }
 
 manage_license_guard_config_file() {

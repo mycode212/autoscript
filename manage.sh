@@ -2040,7 +2040,7 @@ main_info_license_status_url_get() {
     return 0
   fi
 
-  api_url="${AUTOSCRIPT_LICENSE_API_URL:-${AUTOSCRIPT_LICENSE_DEFAULT_API_URL:-https://autoscript-license.minidecrypt.workers.dev/api/v1/license/check}}"
+  api_url="${AUTOSCRIPT_LICENSE_API_URL:-${AUTOSCRIPT_LICENSE_DEFAULT_API_URL:-https://autoscript-license.worker-balancer-mang.workers.dev/api/v1/license/check}}"
   case "${api_url}" in
     */api/v1/license/check)
       printf '%s/api/public/license/status\n' "${api_url%/api/v1/license/check}"
@@ -2051,7 +2051,7 @@ main_info_license_status_url_get() {
     printf '%s/api/public/license/status\n' "${BASH_REMATCH[0]}"
     return 0
   fi
-  printf '%s\n' "https://autoscript-license.minidecrypt.workers.dev/api/public/license/status"
+  printf '%s\n' "https://autoscript-license.worker-balancer-mang.workers.dev/api/public/license/status"
 }
 
 main_info_license_summary_get() {
