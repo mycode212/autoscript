@@ -48,7 +48,7 @@ Jika lisensi belum aktif, installer akan berhenti pada tahap preflight `License 
 ## Quick Install
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/superdecrypt-dev/autoscript/main/run.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/mycode212/autoscript/refs/heads/main/run.sh)
 ```
 
 ## Arsitektur Singkat
@@ -110,64 +110,64 @@ Internet / Cloudflare
 
 ## Komponen Runtime
 
-| Komponen | Peran | Status |
-| --- | --- | --- |
-| `edge-mux` | ingress publik utama | frontend |
-| `xray` | core proxy utama | backend |
-| `nginx` | HTTP backend internal dan web support | internal |
-| `sshws-dropbear` | backend SSH direct | internal |
-| `sshws-stunnel` | backend SSH TLS | internal |
-| `sshws-proxy` | backend SSH WebSocket | internal |
-| `badvpn-udpgw` | UDPGW lokal | internal |
-| `wireproxy` / `warp-svc` | runtime WARP | sesuai mode aktif |
-| `account-portal` | portal akun read-only | opsional |
-| `bot-telegram-backend` | API internal bot | opsional |
-| `bot-telegram-gateway` | gateway Telegram | opsional |
-| `xray-domain-guard` | guard domain dan TLS | maintenance |
-| `xray-session` | pelacak sesi aktif Xray | maintenance |
+| Komponen                 | Peran                                 | Status            |
+| ------------------------ | ------------------------------------- | ----------------- |
+| `edge-mux`               | ingress publik utama                  | frontend          |
+| `xray`                   | core proxy utama                      | backend           |
+| `nginx`                  | HTTP backend internal dan web support | internal          |
+| `sshws-dropbear`         | backend SSH direct                    | internal          |
+| `sshws-stunnel`          | backend SSH TLS                       | internal          |
+| `sshws-proxy`            | backend SSH WebSocket                 | internal          |
+| `badvpn-udpgw`           | UDPGW lokal                           | internal          |
+| `wireproxy` / `warp-svc` | runtime WARP                          | sesuai mode aktif |
+| `account-portal`         | portal akun read-only                 | opsional          |
+| `bot-telegram-backend`   | API internal bot                      | opsional          |
+| `bot-telegram-gateway`   | gateway Telegram                      | opsional          |
+| `xray-domain-guard`      | guard domain dan TLS                  | maintenance       |
+| `xray-session`           | pelacak sesi aktif Xray               | maintenance       |
 
 ## Eksposur Jaringan
 
 ### Port publik edge gateway
 
-| Kategori | Port | Keterangan |
-| --- | --- | --- |
-| `HTTP primary` | `80` | ingress utama |
-| `HTTP alternate` | `8080, 8880, 2052, 2082, 2086, 2095` | port alternatif |
-| `HTTPS primary` | `443` | ingress utama TLS |
-| `HTTPS alternate` | `2053, 2083, 2087, 2096, 8443` | port alternatif |
+| Kategori          | Port                                 | Keterangan        |
+| ----------------- | ------------------------------------ | ----------------- |
+| `HTTP primary`    | `80`                                 | ingress utama     |
+| `HTTP alternate`  | `8080, 8880, 2052, 2082, 2086, 2095` | port alternatif   |
+| `HTTPS primary`   | `443`                                | ingress utama TLS |
+| `HTTPS alternate` | `2053, 2083, 2087, 2096, 8443`       | port alternatif   |
 
 ### Ekspos layanan
 
-| Layanan | Port user-facing |
-| --- | --- |
-| `SSH WS` | `443, 80` + alt port |
-| `SSH SSL/TLS` | `443, 80` + alt port |
-| `SSH Direct` | `443, 80` + alt port |
-| `VLESS` semua transport | `443, 80` + alt port |
-| `VMess` semua transport | `443, 80` + alt port |
+| Layanan                  | Port user-facing     |
+| ------------------------ | -------------------- |
+| `SSH WS`                 | `443, 80` + alt port |
+| `SSH SSL/TLS`            | `443, 80` + alt port |
+| `SSH Direct`             | `443, 80` + alt port |
+| `VLESS` semua transport  | `443, 80` + alt port |
+| `VMess` semua transport  | `443, 80` + alt port |
 | `Trojan` semua transport | `443, 80` + alt port |
 
 ## Path Publik Stabil
 
 Gunakan hanya path publik di bawah ini untuk client. Hindari memakai path internal acak backend lokal.
 
-| Transport | Path utama | Varian alt | Catatan |
-| --- | --- | --- | --- |
-| `SSH WS` | `/<token-hex-10>` | `/<bebas>/<token-hex-10>/<bebas>` | token SSH WS 10 digit heksadesimal |
-| `VLESS WS` | `/vless-ws` | `/<bebas>/vless-ws/<bebas>` | path publik stabil |
-| `VLESS HUP` | `/vless-hup` | `/<bebas>/vless-hup/<bebas>` | path publik stabil |
-| `VLESS XHTTP` | `/vless-xhttp` | `/<bebas>/vless-xhttp/<bebas>` | path publik stabil |
-| `VLESS XHTTP3` | `xray.json per akun` | mengikuti profile UDP/QUIC | profile client dirender otomatis |
-| `VLESS gRPC` | `/vless-grpc` | `/<bebas>/vless-grpc/<bebas>` | service name internal disembunyikan |
-| `VMess WS` | `/vmess-ws` | `/<bebas>/vmess-ws/<bebas>` | path publik stabil |
-| `VMess HUP` | `/vmess-hup` | `/<bebas>/vmess-hup/<bebas>` | path publik stabil |
-| `VMess XHTTP` | `/vmess-xhttp` | `/<bebas>/vmess-xhttp/<bebas>` | path publik stabil |
-| `VMess gRPC` | `/vmess-grpc` | `/<bebas>/vmess-grpc/<bebas>` | service name internal disembunyikan |
-| `Trojan WS` | `/trojan-ws` | `/<bebas>/trojan-ws/<bebas>` | path publik stabil |
-| `Trojan HUP` | `/trojan-hup` | `/<bebas>/trojan-hup/<bebas>` | path publik stabil |
-| `Trojan XHTTP` | `/trojan-xhttp` | `/<bebas>/trojan-xhttp/<bebas>` | path publik stabil |
-| `Trojan gRPC` | `/trojan-grpc` | `/<bebas>/trojan-grpc/<bebas>` | service name internal disembunyikan |
+| Transport      | Path utama           | Varian alt                        | Catatan                             |
+| -------------- | -------------------- | --------------------------------- | ----------------------------------- |
+| `SSH WS`       | `/<token-hex-10>`    | `/<bebas>/<token-hex-10>/<bebas>` | token SSH WS 10 digit heksadesimal  |
+| `VLESS WS`     | `/vless-ws`          | `/<bebas>/vless-ws/<bebas>`       | path publik stabil                  |
+| `VLESS HUP`    | `/vless-hup`         | `/<bebas>/vless-hup/<bebas>`      | path publik stabil                  |
+| `VLESS XHTTP`  | `/vless-xhttp`       | `/<bebas>/vless-xhttp/<bebas>`    | path publik stabil                  |
+| `VLESS XHTTP3` | `xray.json per akun` | mengikuti profile UDP/QUIC        | profile client dirender otomatis    |
+| `VLESS gRPC`   | `/vless-grpc`        | `/<bebas>/vless-grpc/<bebas>`     | service name internal disembunyikan |
+| `VMess WS`     | `/vmess-ws`          | `/<bebas>/vmess-ws/<bebas>`       | path publik stabil                  |
+| `VMess HUP`    | `/vmess-hup`         | `/<bebas>/vmess-hup/<bebas>`      | path publik stabil                  |
+| `VMess XHTTP`  | `/vmess-xhttp`       | `/<bebas>/vmess-xhttp/<bebas>`    | path publik stabil                  |
+| `VMess gRPC`   | `/vmess-grpc`        | `/<bebas>/vmess-grpc/<bebas>`     | service name internal disembunyikan |
+| `Trojan WS`    | `/trojan-ws`         | `/<bebas>/trojan-ws/<bebas>`      | path publik stabil                  |
+| `Trojan HUP`   | `/trojan-hup`        | `/<bebas>/trojan-hup/<bebas>`     | path publik stabil                  |
+| `Trojan XHTTP` | `/trojan-xhttp`      | `/<bebas>/trojan-xhttp/<bebas>`   | path publik stabil                  |
+| `Trojan gRPC`  | `/trojan-grpc`       | `/<bebas>/trojan-grpc/<bebas>`    | service name internal disembunyikan |
 
 Catatan:
 
@@ -176,17 +176,17 @@ Catatan:
 
 ## Port Internal
 
-| Komponen | Bind | Keterangan |
-| --- | --- | --- |
-| `nginx` | `127.0.0.1:18080` | backend web internal |
-| `sshws-dropbear` | `127.0.0.1:22022` | backend SSH direct |
-| `sshws-stunnel` | `127.0.0.1:22443` | backend SSH TLS |
-| `sshws-proxy` | `127.0.0.1:10015` | backend SSH WS |
-| `account-portal` | `127.0.0.1:7082` | website info akun |
-| `bot-telegram-backend` | `127.0.0.1:7081` | API internal bot |
-| `edge-mux metrics` | `127.0.0.1:9910` | metrics edge |
-| `WARP local proxy` | `127.0.0.1:40000` | runtime Zero Trust |
-| `BadVPN UDPGW` | `127.0.0.1:7300, 7400, 7500, 7600, 7700, 7800, 7900` | UDPGW lokal |
+| Komponen               | Bind                                                 | Keterangan           |
+| ---------------------- | ---------------------------------------------------- | -------------------- |
+| `nginx`                | `127.0.0.1:18080`                                    | backend web internal |
+| `sshws-dropbear`       | `127.0.0.1:22022`                                    | backend SSH direct   |
+| `sshws-stunnel`        | `127.0.0.1:22443`                                    | backend SSH TLS      |
+| `sshws-proxy`          | `127.0.0.1:10015`                                    | backend SSH WS       |
+| `account-portal`       | `127.0.0.1:7082`                                     | website info akun    |
+| `bot-telegram-backend` | `127.0.0.1:7081`                                     | API internal bot     |
+| `edge-mux metrics`     | `127.0.0.1:9910`                                     | metrics edge         |
+| `WARP local proxy`     | `127.0.0.1:40000`                                    | runtime Zero Trust   |
+| `BadVPN UDPGW`         | `127.0.0.1:7300, 7400, 7500, 7600, 7700, 7800, 7900` | UDPGW lokal          |
 
 ## Account Portal
 
