@@ -977,6 +977,13 @@ warp_zero_trust_service_restart_checked() {
     return 1
   fi
   systemctl enable "${WARP_ZEROTRUST_SERVICE}" >/dev/null 2>&1 || true
+
+  # Bersihkan sesi dan registrasi lama agar daemon membaca ulang mdm.xml
+  if have_cmd warp-cli; then
+    warp_zero_trust_cli_run disconnect >/dev/null 2>&1 || true
+    warp_zero_trust_cli_run registration delete >/dev/null 2>&1 || true
+  fi
+
   if ! svc_restart_checked "${WARP_ZEROTRUST_SERVICE}" 30 >/dev/null 2>&1; then
     warn "Restart ${WARP_ZEROTRUST_SERVICE} gagal."
     return 1
@@ -2934,12 +2941,12 @@ xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 with open(dst, "w", encoding="utf-8") as fh:
   fh.write(xml)
 ' "${tmp}" "${proxy_port}" || return 1
-  mv -f "${tmp}" "${WARP_ZEROTRUST_MDM_FILE}" || {
-    rm -f "${tmp}" >/dev/null 2>&1 || true
-    return 1
-  }
-  chmod 644 "${WARP_ZEROTRUST_MDM_FILE}" >/dev/null 2>&1 || true
-  chown warp:warp "${WARP_ZEROTRUST_MDM_FILE}" 2>/dev/null || true
+  mkdir -p /var/lib/cloudflare-warp /etc/cloudflare-warp 2>/dev/null || true
+  cp -f "${tmp}" "/var/lib/cloudflare-warp/mdm.xml" || true
+  cp -f "${tmp}" "/etc/cloudflare-warp/mdm.xml" || true
+  chmod 644 /var/lib/cloudflare-warp/mdm.xml /etc/cloudflare-warp/mdm.xml >/dev/null 2>&1 || true
+  chown warp:warp /var/lib/cloudflare-warp/mdm.xml /etc/cloudflare-warp/mdm.xml 2>/dev/null || true
+  rm -f "${tmp}" >/dev/null 2>&1 || true
   return 0
 }
 
