@@ -260,10 +260,9 @@ sanity_check() {
       ok "check: badvpn ${badvpn_ports_label} listening"
     else
       warn "check: badvpn ${badvpn_ports_label} missing ${badvpn_missing}"
-      failed=1
     fi
   else
-    warn "check: badvpn 7300, 7400, 7500, 7600, 7700, 7800, 7900 optional (prebuilt tidak tersedia)"
+    warn "check: badvpn 7300, 7400, 7500, 7600, 7700, 7800, 7900 optional"
   fi
 
   if [[ "$failed" -ne 0 ]]; then

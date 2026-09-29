@@ -111,7 +111,8 @@ ui_spinner_wait() {
   local pid="$1"
   local label="${2:-Memproses}"
   local start_ts now elapsed frame_idx rc
-  local -a frames=('|' '/' '-' '\\')
+  local -a frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+  local formatted_time
 
   if [[ ! "${pid}" =~ ^[0-9]+$ ]]; then
     return 1
@@ -121,19 +122,31 @@ ui_spinner_wait() {
     return $?
   fi
 
+  # Sembunyikan kursor selama animasi spinner
+  printf '\033[?25l' 2>/dev/null || true
+
   start_ts="$(date +%s 2>/dev/null || echo 0)"
   frame_idx=0
   while kill -0 "${pid}" 2>/dev/null; do
     now="$(date +%s 2>/dev/null || echo "${start_ts}")"
     elapsed=$(( now - start_ts ))
-    printf '\r%b' "${frames[$frame_idx]} ${label} ${YELLOW}(${elapsed}s)${NC}"
+    if (( elapsed >= 60 )); then
+      formatted_time="$(( elapsed / 60 ))m $(( elapsed % 60 ))s"
+    else
+      formatted_time="${elapsed}s"
+    fi
+
+    printf '\r\033[2K \033[1;36m%s\033[0m \033[1;37m%s\033[0m \033[0;36m(%s)\033[0m' \
+      "${frames[$frame_idx]}" "${label}" "${formatted_time}"
     frame_idx=$(( (frame_idx + 1) % ${#frames[@]} ))
-    sleep 0.12
+    sleep 0.08
   done
 
   wait "${pid}"
   rc=$?
-  printf '\r\033[2K'
+
+  # Bersihkan baris dan kembalikan kursor
+  printf '\r\033[2K\033[?25h' 2>/dev/null || true
   return "${rc}"
 }
 
