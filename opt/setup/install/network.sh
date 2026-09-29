@@ -632,24 +632,25 @@ EOF
       fi
     done
 
-    [[ -f wgcf-account.toml ]] || {
+    if [[ ! -f wgcf-account.toml ]]; then
       tail -n 120 "$reg_log" >&2 || true
       rm -f "$reg_log" >/dev/null 2>&1 || true
-      die "wgcf register gagal (kemungkinan terkena Cloudflare API rate limit / 429). Coba jalankan beberapa menit lagi atau salin wgcf-account.toml manual ke /etc/wgcf/."
-    }
+      warn "wgcf register gagal (Cloudflare WARP API rate limit / 429). Setup WARP wireproxy dilewati sementara dan dapat didaftarkan ulang via menu 'manage'."
+      popd >/dev/null || true
+      return 0
+    fi
     rm -f "$reg_log" >/dev/null 2>&1 || true
   fi
 
   local gen_log
   gen_log="$(mktemp "/tmp/wgcf-generate.XXXXXX.log")"
-  wgcf generate >"$gen_log" 2>&1 || {
+  if ! wgcf generate >"$gen_log" 2>&1 || [[ ! -f wgcf-profile.conf ]]; then
     tail -n 120 "$gen_log" >&2 || true
-    die "wgcf generate gagal. Lihat log: $gen_log"
-  }
-  [[ -f wgcf-profile.conf ]] || {
-    tail -n 120 "$gen_log" >&2 || true
-    die "wgcf-profile.conf tidak ditemukan setelah generate."
-  }
+    rm -f "$gen_log" >/dev/null 2>&1 || true
+    warn "wgcf generate gagal. Setup WARP wireproxy dilewati sementara."
+    popd >/dev/null || true
+    return 0
+  fi
   rm -f "$gen_log" >/dev/null 2>&1 || true
 
   popd >/dev/null || die "Gagal kembali dari /etc/wgcf."
@@ -659,6 +660,11 @@ EOF
 setup_wireproxy() {
   local active_mode=""
   ok "Siapkan wireproxy..."
+
+  if [[ ! -f /etc/wgcf/wgcf-profile.conf ]]; then
+    warn "Profile /etc/wgcf/wgcf-profile.conf belum tersedia. wireproxy dilewati."
+    return 0
+  fi
 
   mkdir -p /etc/wireproxy
   cp -f /etc/wgcf/wgcf-profile.conf "${WIREPROXY_CONF}"
@@ -832,7 +838,10 @@ setup_ssh_warp_interface() {
   local iface="" conf_path="" unit=""
 
   ok "Siapkan SSH WARP interface..."
-  [[ -s "${WIREPROXY_CONF}" ]] || die "Source config WARP host tidak ditemukan: ${WIREPROXY_CONF}"
+  if [[ ! -s "${WIREPROXY_CONF}" ]]; then
+    warn "Source config WARP host (${WIREPROXY_CONF}) belum tersedia. Interface SSH WARP dilewati."
+    return 0
+  fi
   command -v python3 >/dev/null 2>&1 || die "python3 tidak ditemukan untuk SSH WARP."
   command -v wg-quick >/dev/null 2>&1 || die "wg-quick tidak ditemukan. Pastikan wireguard-tools terpasang."
 
