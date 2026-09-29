@@ -64,10 +64,7 @@ sanity_check() {
   elif systemctl is-active --quiet wireproxy; then
     ok "check: wireproxy active"
   else
-    warn "check: wireproxy inactive"
-    systemctl status wireproxy --no-pager >&2 || true
-    journalctl -u wireproxy -n 120 --no-pager >&2 || true
-    failed=1
+    warn "check: wireproxy inactive (opsional, bisa diaktifkan via manage)"
   fi
 
   if command -v warp-cli >/dev/null 2>&1 || systemctl list-unit-files "${WARP_ZEROTRUST_SERVICE}" >/dev/null 2>&1; then
