@@ -807,73 +807,126 @@ install_acme_and_issue_cert() {
   mkdir -p "${CERT_DIR}" "$(dirname "${install_fullchain}")" "$(dirname "${install_privkey}")"
   chmod 700 "${CERT_DIR}" >/dev/null 2>&1 || true
 
-  if [[ "${ACME_CERT_MODE:-standalone}" == "dns_cf_wildcard" ]]; then
-    [[ -n "${ACME_ROOT_DOMAIN:-}" ]] || die "ACME_ROOT_DOMAIN kosong (mode dns_cf_wildcard)."
-    [[ -n "${DOMAIN:-}" ]] || die "DOMAIN kosong (mode dns_cf_wildcard)."
-    [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]] || die "CLOUDFLARE_API_TOKEN kosong untuk mode wildcard dns_cf."
-    log "Issue sertifikat wildcard untuk ${DOMAIN} via acme.sh (dns_cf)..."
-
-    if [[ ! -s /root/.acme.sh/dnsapi/dns_cf.sh ]]; then
-      warn "dns_cf hook tidak ditemukan, mencoba bootstrap dari ref ${ACME_SH_INSTALL_REF} ..."
-      mkdir -p /root/.acme.sh/dnsapi
-      download_file_or_die "${ACME_SH_DNS_CF_HOOK_URL}" /root/.acme.sh/dnsapi/dns_cf.sh "" "acme dns_cf hook"
-      chmod 700 /root/.acme.sh/dnsapi/dns_cf.sh >/dev/null 2>&1 || true
+  local -a ca_list=("${ACME_DEFAULT_CA:-letsencrypt}" "zerossl" "buypass" "letsencrypt")
+  local -a unique_cas=()
+  local ca_item u_item exists_ca
+  for ca_item in "${ca_list[@]}"; do
+    [[ -z "${ca_item}" ]] && continue
+    exists_ca=0
+    for u_item in "${unique_cas[@]}"; do
+      if [[ "${u_item}" == "${ca_item}" ]]; then exists_ca=1; break; fi
+    done
+    if [[ "${exists_ca}" -eq 0 ]]; then
+      unique_cas+=("${ca_item}")
     fi
-    [[ -s /root/.acme.sh/dnsapi/dns_cf.sh ]] || die "Hook dns_cf tetap tidak ditemukan setelah bootstrap."
+  done
 
-    if ! cf_api GET "/user/tokens/verify" >/dev/null 2>&1; then
-      die "Token Cloudflare tidak valid/kurang scope. Butuh minimal: Zone:DNS Edit + Zone:Read untuk zone domain."
+  # Helper untuk mengecek validitas sertifikat
+  local cert_is_valid=0
+  if [[ -s "${install_fullchain}" && -s "${install_privkey}" ]]; then
+    if openssl x509 -checkend 259200 -noout -in "${install_fullchain}" >/dev/null 2>&1; then
+      if openssl x509 -noout -checkhost "${DOMAIN}" -in "${install_fullchain}" >/dev/null 2>&1 || openssl x509 -noout -text -in "${install_fullchain}" 2>/dev/null | grep -Eiq "DNS:([*]\.)?${DOMAIN//./\\.}"; then
+        cert_is_valid=1
+      fi
     fi
+  fi
 
-    export CF_Token="$CLOUDFLARE_API_TOKEN"
-    [[ -n "${CF_ACCOUNT_ID:-}" ]] && export CF_Account_ID="$CF_ACCOUNT_ID"
-    [[ -n "${CF_ZONE_ID:-}" ]] && export CF_Zone_ID="$CF_ZONE_ID"
+  if [[ "${cert_is_valid}" -eq 1 ]]; then
+    log "Sertifikat valid untuk ${DOMAIN} sudah tersedia di ${install_fullchain}."
+  else
+    if [[ "${ACME_CERT_MODE:-standalone}" == "dns_cf_wildcard" ]]; then
+      [[ -n "${ACME_ROOT_DOMAIN:-}" ]] || die "ACME_ROOT_DOMAIN kosong (mode dns_cf_wildcard)."
+      [[ -n "${DOMAIN:-}" ]] || die "DOMAIN kosong (mode dns_cf_wildcard)."
+      [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]] || die "CLOUDFLARE_API_TOKEN kosong untuk mode wildcard dns_cf."
+      log "Issue sertifikat wildcard untuk ${DOMAIN} via acme.sh (dns_cf)..."
 
-    /root/.acme.sh/acme.sh --issue --force --dns dns_cf \
-      -d "$DOMAIN" -d "*.$DOMAIN" \
-      || die "Gagal issue sertifikat wildcard via dns_cf (pastikan token Cloudflare valid)."
+      if [[ ! -s /root/.acme.sh/dnsapi/dns_cf.sh ]]; then
+        warn "dns_cf hook tidak ditemukan, mencoba bootstrap dari ref ${ACME_SH_INSTALL_REF} ..."
+        mkdir -p /root/.acme.sh/dnsapi
+        download_file_or_die "${ACME_SH_DNS_CF_HOOK_URL}" /root/.acme.sh/dnsapi/dns_cf.sh "" "acme dns_cf hook"
+        chmod 700 /root/.acme.sh/dnsapi/dns_cf.sh >/dev/null 2>&1 || true
+      fi
+      [[ -s /root/.acme.sh/dnsapi/dns_cf.sh ]] || die "Hook dns_cf tetap tidak ditemukan setelah bootstrap."
 
-    /root/.acme.sh/acme.sh --install-cert -d "$DOMAIN" \
-      --key-file "${install_privkey}" \
-      --fullchain-file "${install_fullchain}" \
-      --reloadcmd "/bin/true" >/dev/null || {
-        warn "Gagal install-cert wildcard ke ${CERT_DIR}."
+      if ! cf_api GET "/user/tokens/verify" >/dev/null 2>&1; then
+        die "Token Cloudflare tidak valid/kurang scope. Butuh minimal: Zone:DNS Edit + Zone:Read untuk zone domain."
+      fi
+
+      export CF_Token="$CLOUDFLARE_API_TOKEN"
+      [[ -n "${CF_ACCOUNT_ID:-}" ]] && export CF_Account_ID="$CF_ACCOUNT_ID"
+      [[ -n "${CF_ZONE_ID:-}" ]] && export CF_Zone_ID="$CF_ZONE_ID"
+
+      local issue_ok=0
+      for ca_item in "${unique_cas[@]}"; do
+        log "Mencoba issue wildcard cert via CA: ${ca_item}..."
+        /root/.acme.sh/acme.sh --set-default-ca --server "${ca_item}" >/dev/null 2>&1 || true
+        /root/.acme.sh/acme.sh --register-account -m "${email}" --server "${ca_item}" >/dev/null 2>&1 || true
+
+        if /root/.acme.sh/acme.sh --issue --dns dns_cf \
+          -d "$DOMAIN" -d "*.$DOMAIN" --server "${ca_item}"; then
+          issue_ok=1
+          break
+        fi
+        warn "Issue wildcard via CA '${ca_item}' gagal, mencoba CA alternatif..."
+      done
+
+      [[ "${issue_ok}" -eq 1 ]] || die "Gagal issue sertifikat wildcard via dns_cf dari seluruh CA alternatif."
+
+      /root/.acme.sh/acme.sh --install-cert -d "$DOMAIN" \
+        --key-file "${install_privkey}" \
+        --fullchain-file "${install_fullchain}" \
+        --reloadcmd "/bin/true" >/dev/null || {
+          warn "Gagal install-cert wildcard ke ${CERT_DIR}."
+          return 1
+        }
+    else
+      local -a conflict_services=()
+      while IFS= read -r svc; do
+        [[ -n "${svc}" ]] || continue
+        conflict_services+=("${svc}")
+      done < <(domain_control_port80_conflict_services_list)
+      if (( ${#conflict_services[@]} > 0 )); then
+        warn "Terdeteksi konflik port 80. Layanan yang memakai port 80 akan dihentikan sementara lalu dipulihkan setelah selesai."
+        log "Service aktif di port 80: $(IFS=', '; echo "${conflict_services[*]}")"
+        if ! stop_conflicting_services; then
+          warn "Gagal menghentikan semua layanan konflik port 80."
+          return 1
+        fi
+      fi
+      log "Issue sertifikat untuk $DOMAIN via acme.sh (standalone port 80)..."
+      local issue_ok=0
+      for ca_item in "${unique_cas[@]}"; do
+        log "Mencoba issue cert via CA: ${ca_item}..."
+        /root/.acme.sh/acme.sh --set-default-ca --server "${ca_item}" >/dev/null 2>&1 || true
+        /root/.acme.sh/acme.sh --register-account -m "${email}" --server "${ca_item}" >/dev/null 2>&1 || true
+
+        if /root/.acme.sh/acme.sh --issue --standalone -d "$DOMAIN" --httpport 80 --server "${ca_item}"; then
+          issue_ok=1
+          break
+        fi
+        warn "Issue standalone via CA '${ca_item}' gagal, mencoba CA alternatif..."
+      done
+
+      if [[ "${issue_ok}" -ne 1 ]]; then
+        warn "Gagal issue sertifikat di semua CA alternatif (pastikan port 80 terbuka & DNS domain mengarah ke VPS)."
+        if ! domain_control_restore_stopped_services; then
+          warn "Sebagian service yang dihentikan sementara gagal dipulihkan setelah issue sertifikat gagal."
+        fi
         return 1
-      }
-	  else
-	    local -a conflict_services=()
-	    while IFS= read -r svc; do
-	      [[ -n "${svc}" ]] || continue
-	      conflict_services+=("${svc}")
-	    done < <(domain_control_port80_conflict_services_list)
-	    if (( ${#conflict_services[@]} > 0 )); then
-	      warn "Terdeteksi konflik port 80. Layanan yang memakai port 80 akan dihentikan sementara lalu dipulihkan setelah selesai."
-	      log "Service aktif di port 80: $(IFS=', '; echo "${conflict_services[*]}")"
-	      if ! stop_conflicting_services; then
-	        warn "Gagal menghentikan semua layanan konflik port 80."
-	        return 1
-	      fi
-	    fi
-	    log "Issue sertifikat untuk $DOMAIN via acme.sh (standalone port 80)..."
-	    if ! /root/.acme.sh/acme.sh --issue --force --standalone -d "$DOMAIN" --httpport 80; then
-	      warn "Gagal issue sertifikat (pastikan port 80 terbuka & DNS domain mengarah ke VPS)."
-	      if ! domain_control_restore_stopped_services; then
-	        warn "Sebagian service yang dihentikan sementara gagal dipulihkan setelah issue sertifikat gagal."
-	      fi
-	      return 1
-	    fi
+      fi
 
-	    if ! /root/.acme.sh/acme.sh --install-cert -d "$DOMAIN" \
-	      --key-file "${install_privkey}" \
-	      --fullchain-file "${install_fullchain}" \
-	      --reloadcmd "/bin/true" >/dev/null; then
-	      warn "Gagal install-cert standalone ke ${CERT_DIR}."
-	      if ! domain_control_restore_stopped_services; then
-	        warn "Sebagian service yang dihentikan sementara gagal dipulihkan setelah install-cert gagal."
-	      fi
-	      return 1
-	    fi
-	  fi
+      if ! /root/.acme.sh/acme.sh --install-cert -d "$DOMAIN" \
+        --key-file "${install_privkey}" \
+        --fullchain-file "${install_fullchain}" \
+        --reloadcmd "/bin/true" >/dev/null; then
+        warn "Gagal install-cert standalone ke ${CERT_DIR}."
+        if ! domain_control_restore_stopped_services; then
+          warn "Sebagian service yang dihentikan sementara gagal dipulihkan setelah install-cert gagal."
+        fi
+        return 1
+      fi
+    fi
+  fi
 
   chmod 600 "${install_privkey}" "${install_fullchain}" >/dev/null 2>&1 || true
 

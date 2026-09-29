@@ -771,6 +771,107 @@ domain_menu_v2() {
   ok "Mode cert: dns_cf wildcard"
 }
 
+is_cert_valid_for_domain() {
+  local domain="$1"
+  local cert_file="${2:-${CERT_FULLCHAIN}}"
+  local key_file="${3:-${CERT_PRIVKEY}}"
+
+  [[ -s "${cert_file}" && -s "${key_file}" ]] || return 1
+
+  # Valid minimal 3 hari (259200 detik)
+  if ! openssl x509 -checkend 259200 -noout -in "${cert_file}" >/dev/null 2>&1; then
+    return 1
+  fi
+
+  # Cek kecocokan host domain
+  if openssl x509 -noout -checkhost "${domain}" -in "${cert_file}" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  # Fallback cek SAN / Subject
+  local cert_text
+  cert_text="$(openssl x509 -noout -text -in "${cert_file}" 2>/dev/null || true)"
+  if grep -Eiq "DNS:([*]\.)?${domain//./\\.}(,|\$|[[:space:]])" <<< "${cert_text}"; then
+    return 0
+  fi
+  if grep -Eiq "CN[[:space:]]*=[[:space:]]*([*]\.)?${domain//./\\.}" <<< "${cert_text}"; then
+    return 0
+  fi
+
+  return 1
+}
+
+acme_issue_cert_with_fallback() {
+  local mode="$1" # "standalone" or "dns_cf"
+  local domain="$2"
+  local email="${3:-$(rand_email)}"
+  local primary_ca="${ACME_DEFAULT_CA:-letsencrypt}"
+  local -a ca_list=("${primary_ca}" "zerossl" "buypass" "letsencrypt")
+  local -a unique_cas=()
+  local ca u exists
+
+  for ca in "${ca_list[@]}"; do
+    [[ -z "${ca}" ]] && continue
+    exists=0
+    for u in "${unique_cas[@]}"; do
+      if [[ "${u}" == "${ca}" ]]; then exists=1; break; fi
+    done
+    if [[ "${exists}" -eq 0 ]]; then
+      unique_cas+=("${ca}")
+    fi
+  done
+
+  # 1. Cek apakah sertifikat valid sudah ada di direktori tujuan
+  if is_cert_valid_for_domain "${domain}" "${CERT_FULLCHAIN}" "${CERT_PRIVKEY}"; then
+    ok "Sertifikat valid untuk ${domain} sudah terpasang di ${CERT_DIR}."
+    return 0
+  fi
+
+  # 2. Cek apakah acme.sh sudah memiliki sertifikat valid yang belum terpasang
+  if /root/.acme.sh/acme.sh --install-cert -d "${domain}" \
+    --key-file "${CERT_PRIVKEY}" \
+    --fullchain-file "${CERT_FULLCHAIN}" \
+    --reloadcmd "/bin/true" >/dev/null 2>&1; then
+    if is_cert_valid_for_domain "${domain}" "${CERT_FULLCHAIN}" "${CERT_PRIVKEY}"; then
+      ok "Sertifikat untuk ${domain} berhasil dipulihkan dari cache acme.sh."
+      return 0
+    fi
+  fi
+
+  # 3. Issue sertifikat baru dengan multi-CA fallback
+  local success=0
+  for ca in "${unique_cas[@]}"; do
+    ok "Mencoba issue sertifikat via CA: ${ca}..."
+    /root/.acme.sh/acme.sh --set-default-ca --server "${ca}" >/dev/null 2>&1 || true
+    /root/.acme.sh/acme.sh --register-account -m "${email}" --server "${ca}" >/dev/null 2>&1 || true
+
+    if [[ "${mode}" == "dns_cf" ]]; then
+      if /root/.acme.sh/acme.sh --issue --dns dns_cf \
+        -d "${domain}" -d "*.${domain}" --server "${ca}"; then
+        success=1
+        break
+      fi
+    else
+      if /root/.acme.sh/acme.sh --issue --standalone -d "${domain}" --httpport 80 --server "${ca}"; then
+        success=1
+        break
+      fi
+    fi
+    warn "Issue sertifikat dengan CA '${ca}' gagal/terkena rate limit, mencoba CA alternatif..."
+  done
+
+  if [[ "${success}" -ne 1 ]]; then
+    return 1
+  fi
+
+  /root/.acme.sh/acme.sh --install-cert -d "${domain}" \
+    --key-file "${CERT_PRIVKEY}" \
+    --fullchain-file "${CERT_FULLCHAIN}" \
+    --reloadcmd "/bin/true" >/dev/null || return 1
+
+  return 0
+}
+
 install_acme_and_issue_cert() {
   local email=""
   if [[ "${ACME_CERT_MODE}" != "dns_cf_wildcard" ]]; then
@@ -784,11 +885,11 @@ install_acme_and_issue_cert() {
   fi
   mkdir -p "$CERT_DIR"
 
+  email="$(rand_email)"
   if [[ -x /root/.acme.sh/acme.sh ]]; then
     ok "acme.sh sudah ada."
   else
     ok "Pasang acme.sh..."
-    email="$(rand_email)"
     ok "Email ACME: ${email}"
     local acme_tarball acme_tmpdir acme_dns_hook
     acme_tarball="$(mktemp)"
@@ -825,25 +926,12 @@ install_acme_and_issue_cert() {
     [[ -n "${CF_ACCOUNT_ID:-}" ]] && export CF_Account_ID="${CF_ACCOUNT_ID}"
     [[ -n "${CF_ZONE_ID:-}" ]] && export CF_Zone_ID="${CF_ZONE_ID}"
 
-    /root/.acme.sh/acme.sh --issue --force --dns dns_cf \
-      -d "${DOMAIN}" -d "*.${DOMAIN}" \
+    acme_issue_cert_with_fallback "dns_cf" "${DOMAIN}" "${email}" \
       || die "Gagal issue sertifikat wildcard via dns_cf (pastikan token Cloudflare valid)."
-
-    /root/.acme.sh/acme.sh --install-cert -d "${DOMAIN}" \
-      --key-file "${CERT_PRIVKEY}" \
-      --fullchain-file "${CERT_FULLCHAIN}" \
-      --reloadcmd "/bin/true" >/dev/null \
-      || die "Gagal install sertifikat wildcard ke ${CERT_DIR}."
   else
     ok "Issue cert via standalone :80..."
-    /root/.acme.sh/acme.sh --issue --force --standalone -d "${DOMAIN}" --httpport 80 \
+    acme_issue_cert_with_fallback "standalone" "${DOMAIN}" "${email}" \
       || die "Gagal issue sertifikat (pastikan port 80 terbuka & DNS domain mengarah ke VPS)."
-
-    /root/.acme.sh/acme.sh --install-cert -d "${DOMAIN}" \
-      --key-file "${CERT_PRIVKEY}" \
-      --fullchain-file "${CERT_FULLCHAIN}" \
-      --reloadcmd "/bin/true" >/dev/null \
-      || die "Gagal install sertifikat ke ${CERT_DIR}."
   fi
 
   nginx -t >/dev/null 2>&1 || die "Konfigurasi nginx tidak valid setelah install-cert."
