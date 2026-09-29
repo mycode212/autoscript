@@ -661,12 +661,20 @@ setup_wireproxy() {
   local active_mode=""
   ok "Siapkan wireproxy..."
 
+  mkdir -p /etc/wireproxy
+
+  render_setup_template_or_die \
+    "systemd/wireproxy.service" \
+    "/etc/systemd/system/wireproxy.service" \
+    0644
+
+  systemctl daemon-reload
+
   if [[ ! -f /etc/wgcf/wgcf-profile.conf ]]; then
-    warn "Profile /etc/wgcf/wgcf-profile.conf belum tersedia. wireproxy dilewati."
+    warn "Profile /etc/wgcf/wgcf-profile.conf belum tersedia. wireproxy dilewati (dapat diaktifkan nanti lewat menu manage)."
     return 0
   fi
 
-  mkdir -p /etc/wireproxy
   cp -f /etc/wgcf/wgcf-profile.conf "${WIREPROXY_CONF}"
 
   # wireproxy v1.0.9 memakai section [Socks5], bukan [Socks].
@@ -688,13 +696,6 @@ BindAddress = 127.0.0.1:40000
 EOF
   install -m 600 "$wp_tmp" "$wp_conf"
   rm -f "$wp_tmp"
-
-  render_setup_template_or_die \
-    "systemd/wireproxy.service" \
-    "/etc/systemd/system/wireproxy.service" \
-    0644
-
-  systemctl daemon-reload
   active_mode="$(cloudflare_warp_mode_state_get 2>/dev/null || true)"
   if [[ "${active_mode}" == "zerotrust" ]]; then
     if command -v warp-cli >/dev/null 2>&1; then

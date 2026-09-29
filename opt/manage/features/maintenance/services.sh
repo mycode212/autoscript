@@ -9,8 +9,8 @@ wireproxy_status_menu() {
   echo "11) Maintenance > WARP Status"
   hr
 
-  if ! svc_exists wireproxy; then
-    warn "wireproxy.service tidak ditemukan. Pastikan setup.sh sudah dijalankan."
+  if ! svc_exists wireproxy || [[ ! -f "/etc/wireproxy/wireproxy.conf" ]]; then
+    warn "wireproxy belum dikonfigurasi. Silakan aktifkan via menu 10) Network -> Cloudflare WARP."
     hr
     pause
     return 0
@@ -97,8 +97,8 @@ wireproxy_restart_menu() {
   fi
 
   local restart_failed="false"
-  if ! svc_exists wireproxy; then
-    warn "wireproxy.service tidak ditemukan."
+  if ! svc_exists wireproxy || [[ ! -f "/etc/wireproxy/wireproxy.conf" ]]; then
+    warn "wireproxy belum dikonfigurasi. Silakan aktifkan terlebih dahulu di menu 10) Network -> Cloudflare WARP."
     hr
     pause
     return 0

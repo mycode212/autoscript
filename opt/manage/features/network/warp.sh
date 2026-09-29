@@ -994,6 +994,11 @@ warp_zero_trust_proxy_wait_connected() {
     timeout=30
   fi
   proxy_port="$(warp_zero_trust_proxy_port_get)"
+  if have_cmd warp-cli; then
+    warp_zero_trust_cli_run mode proxy
+    warp_zero_trust_cli_run proxy port "${proxy_port}" 2>/dev/null || warp_zero_trust_cli_run set-proxy-port "${proxy_port}" 2>/dev/null || true
+    warp_zero_trust_cli_run connect >/dev/null 2>&1 || true
+  fi
   for (( wait_i=0; wait_i<timeout; wait_i++ )); do
     if have_cmd warp-cli; then
       warp_zero_trust_cli_run connect >/dev/null 2>&1 || true
@@ -2933,7 +2938,8 @@ with open(dst, "w", encoding="utf-8") as fh:
     rm -f "${tmp}" >/dev/null 2>&1 || true
     return 1
   }
-  chmod 600 "${WARP_ZEROTRUST_MDM_FILE}" >/dev/null 2>&1 || true
+  chmod 644 "${WARP_ZEROTRUST_MDM_FILE}" >/dev/null 2>&1 || true
+  chown warp:warp "${WARP_ZEROTRUST_MDM_FILE}" 2>/dev/null || true
   return 0
 }
 
