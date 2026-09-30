@@ -59,6 +59,30 @@ autoscript_version_remote_get() {
   printf '%s\n' "${remote_ver}"
 }
 
+autoscript_version_compare() {
+  local v1="${1#v}"
+  local v2="${2#v}"
+  if [[ "${v1}" == "${v2}" ]]; then
+    return 1
+  fi
+  local IFS=.
+  local i ver1=(${v1}) ver2=(${v2})
+  for ((i=${#ver1[@]}; i<${#ver2[@]}; i++)); do
+    ver1[i]=0
+  done
+  for ((i=${#ver2[@]}; i<${#ver1[@]}; i++)); do
+    ver2[i]=0
+  done
+  for ((i=0; i<${#ver1[@]}; i++)); do
+    if ((10#${ver1[i]} < 10#${ver2[i]})); then
+      return 0
+    elif ((10#${ver1[i]} > 10#${ver2[i]})); then
+      return 2
+    fi
+  done
+  return 1
+}
+
 clear || true
 echo -e "${UI_BORDER}╭────────────────────────────────────────────────────────────╮${UI_RESET}"
 echo -e "${UI_BORDER}│               AUTOSCRIPT XRAY & SSH UPDATER                │${UI_RESET}"
@@ -69,6 +93,19 @@ rem_ver="$(autoscript_version_remote_get)"
 
 echo -e "  ${UI_ACCENT}Versi Terpasang :${UI_RESET} ${UI_WHITE}v${cur_ver}${UI_RESET}"
 echo -e "  ${UI_ACCENT}Versi Terbaru   :${UI_RESET} ${UI_WARN}v${rem_ver}${UI_RESET}\n"
+
+if [[ "${rem_ver}" != "-" ]]; then
+  if ! autoscript_version_compare "${cur_ver}" "${rem_ver}"; then
+    if [[ "${1:-}" != "--force" && "${1:-}" != "-f" ]]; then
+      echo -e "  ${UI_SUCCESS}[✓] Versi Anda Sudah Versi Terakhir (v${cur_ver})${UI_RESET}"
+      echo -e "  Tidak ada pembaruan yang diperlukan.\n"
+      echo -e "  ${UI_MUTED}Gunakan perintah 'update --force' jika ingin me-reinstall ulang file script.${UI_RESET}\n"
+      exit 0
+    else
+      echo -e "  ${UI_WARN}[!] Memaksa reinstall file script (--force)...${UI_RESET}\n"
+    fi
+  fi
+fi
 
 echo -e "${UI_PRIMARY}[1/5] Mempersiapkan backup konfigurasi...${UI_RESET}"
 mkdir -p /etc/autoscript

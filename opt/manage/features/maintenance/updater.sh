@@ -64,6 +64,7 @@ autoscript_version_compare() {
 }
 
 autoscript_update_perform() {
+  local is_force="${1:-0}"
   local cur_ver rem_ver
   cur_ver="$(autoscript_version_current_get)"
   rem_ver="$(autoscript_version_remote_get)"
@@ -73,17 +74,20 @@ autoscript_update_perform() {
   printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-16s${UI_RESET} : ${UI_WARN}%-39s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "Latest Version" "v${rem_ver}"
   echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}\n"
 
-  if [[ "${rem_ver}" == "-" ]]; then
-    echo -e "${UI_WARN}[!] Gagal memeriksa versi remote. Pastikan VPS terhubung ke internet.${UI_RESET}"
-    if ! confirm_menu_apply_now "Tetap lanjutkan paksa update dari repository?"; then
-      echo -e "${UI_MUTED}Update dibatalkan.${UI_RESET}"
-      return 0
-    fi
-  elif [[ "${cur_ver}" == "${rem_ver}" ]]; then
-    echo -e "${UI_SUCCESS}[✓] Script Anda sudah versi terbaru (v${cur_ver}).${UI_RESET}"
-    if ! confirm_menu_apply_now "Apakah Anda ingin me-reinstall/memperbarui ulang file script?"; then
-      echo -e "${UI_MUTED}Update dibatalkan.${UI_RESET}"
-      return 0
+  if [[ "${is_force}" != "1" ]]; then
+    if [[ "${rem_ver}" == "-" ]]; then
+      echo -e "${UI_WARN}[!] Gagal memeriksa versi remote. Pastikan VPS terhubung ke internet.${UI_RESET}"
+      if ! confirm_menu_apply_now "Tetap lanjutkan paksa update dari repository?"; then
+        echo -e "${UI_MUTED}Update dibatalkan.${UI_RESET}"
+        return 0
+      fi
+    else
+      if ! autoscript_version_compare "${cur_ver}" "${rem_ver}"; then
+        echo -e "${UI_SUCCESS}[✓] Versi Anda Sudah Versi Terakhir (v${cur_ver}).${UI_RESET}"
+        echo -e "Tidak ada pembaruan yang diperlukan.\n"
+        echo -e "${UI_MUTED}(Gunakan menu 'Paksa Reinstall File Script' jika ingin menimpa ulang file)${UI_RESET}"
+        return 0
+      fi
     fi
   fi
 
@@ -231,10 +235,10 @@ tools_updater_menu() {
       break
     fi
     case "${c}" in
-      1) autoscript_update_perform ; wait_enter ;;
+      1) autoscript_update_perform 0 ; wait_enter ;;
       2)
         if confirm_menu_apply_now "Paksa update/reinstall seluruh file script dari repositori?"; then
-          autoscript_update_perform
+          autoscript_update_perform 1
         fi
         wait_enter
         ;;
