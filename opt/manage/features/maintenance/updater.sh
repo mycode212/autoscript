@@ -185,18 +185,28 @@ autoscript_update_perform() {
 
 tools_updater_menu() {
   while true; do
-    local cur_ver rem_ver status_label
+    local cur_ver rem_ver status_color status_text
     cur_ver="$(autoscript_version_current_get)"
     rem_ver="$(autoscript_version_remote_get)"
 
     if [[ "${rem_ver}" == "-" ]]; then
-      status_label="${UI_WARN}Offline / Tidak dapat dicek${UI_RESET}"
+      status_color="${UI_WARN}"
+      status_text="Offline / Tidak dapat dicek"
     else
       autoscript_version_compare "${cur_ver}" "${rem_ver}"
       case $? in
-        0) status_label="${UI_WARN}Pembaruan Tersedia (v${rem_ver})!${UI_RESET}" ;;
-        1) status_label="${UI_SUCCESS}Versi Terbaru (Up to date)${UI_RESET}" ;;
-        2) status_label="${UI_ACCENT}Versi Development (v${cur_ver})${UI_RESET}" ;;
+        0)
+          status_color="${UI_WARN}"
+          status_text="Pembaruan Tersedia (v${rem_ver})!"
+          ;;
+        1)
+          status_color="${UI_SUCCESS}"
+          status_text="Versi Terbaru (Up to date)"
+          ;;
+        2)
+          status_color="${UI_ACCENT}"
+          status_text="Versi Development (v${cur_ver})"
+          ;;
       esac
     fi
 
@@ -204,7 +214,7 @@ tools_updater_menu() {
     echo -e "${UI_BORDER}╭─────────────────────[ VERSION INFO ]───────────────────────╮${UI_RESET}"
     printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-16s${UI_RESET} : ${UI_WHITE}%-39s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "Current Version" "v${cur_ver}"
     printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-16s${UI_RESET} : ${UI_WHITE}%-39s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "Latest Version" "v${rem_ver}"
-    printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-16s${UI_RESET} : %b${UI_BORDER}│${UI_RESET}\n" "Status" "${status_label}"
+    printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-16s${UI_RESET} : ${status_color}%-39s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "Status" "${status_text:0:39}"
     echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
 
     local -a items=(
@@ -213,7 +223,7 @@ tools_updater_menu() {
       "3|Lihat Changelog / Riwayat Pembaruan"
       "0|Back"
     )
-    ui_menu_render_options items 76
+    ui_menu_render_single_column items
     hr
     if ! read -r -p "Pilih: " c; then
       echo

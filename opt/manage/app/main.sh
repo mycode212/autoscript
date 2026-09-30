@@ -1,4 +1,31 @@
 #!/usr/bin/env bash
+# shellcheck shell=bash
+
+manage_splash_loader() {
+  [[ -t 1 ]] || return 0
+
+  clear 2>/dev/null || true
+  echo -e "${UI_BORDER}╭────────────────────────────────────────────────────────────╮${UI_RESET}"
+  echo -e "${UI_BORDER}│${UI_RESET}  ${UI_BOLD}${UI_WHITE}Membuka Panel${UI_RESET}                                             ${UI_BORDER}│${UI_RESET}"
+  echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
+  echo ""
+
+  printf "  ${UI_ACCENT}->${UI_RESET} ${UI_WHITE}%-28s${UI_RESET} " "Memuat Modules ...."
+  sleep 0.25
+  echo -e "[ ${UI_SUCCESS}OK${UI_RESET} ]"
+
+  printf "  ${UI_ACCENT}->${UI_RESET} ${UI_WHITE}%-28s${UI_RESET} " "Memuat Service ...."
+  sleep 0.25
+  echo -e "[ ${UI_SUCCESS}OK${UI_RESET} ]"
+
+  printf "  ${UI_ACCENT}->${UI_RESET} ${UI_WHITE}%-28s${UI_RESET} " "Memuat Database ...."
+  sleep 0.25
+  echo -e "[ ${UI_SUCCESS}OK${UI_RESET} ]"
+
+  echo ""
+  echo -e "  ${UI_SUCCESS}✓${UI_RESET} ${UI_BOLD}${UI_SUCCESS}System Siap${UI_RESET}"
+  sleep 0.45
+}
 
 main() {
   need_root
@@ -49,5 +76,6 @@ main() {
     return $?
   fi
 
+  manage_splash_loader
   main_menu
 }
