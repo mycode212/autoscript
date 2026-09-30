@@ -178,28 +178,32 @@ banner_set_ssh_manual() {
   echo "Akhiri input dengan mengetik 'EOF' pada baris baru (atau ketik 'batal' untuk keluar):"
   hr
   local line buffer=""
-  while IFS= read -r line; do
-    if [[ "${line}" == "EOF" ]]; then
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    local clean_line="${line%$'\r'}"
+    clean_line="${clean_line#"${clean_line%%[![:space:]]*}"}"
+    clean_line="${clean_line%"${clean_line##*[![:space:]]}"}"
+    if [[ "${clean_line^^}" == "EOF" ]]; then
       break
     fi
-    if [[ "${line}" == "batal" || "${line}" == "cancel" ]]; then
+    if [[ "${clean_line,,}" == "batal" || "${clean_line,,}" == "cancel" ]]; then
       warn "Input manual dibatalkan."
       pause
       return 0
     fi
-    buffer+="${line}"$'\n'
+    buffer+="${line%$'\r'}"$'\n'
   done
   if [[ -z "${buffer// /}" ]]; then
     warn "Teks banner kosong. Perubahan dibatalkan."
     pause
     return 0
   fi
+  info "Menyimpan banner dan memperbarui konfigurasi SSH & Dropbear..."
   local final_content
   final_content="$(banner_apply_watermark_if_trial "${buffer}")"
   printf '%s' "${final_content}" > "${SSH_BANNER_FILE}"
   chmod 644 "${SSH_BANNER_FILE}" 2>/dev/null || true
   banner_sync_ssh_config "${SSH_BANNER_FILE}"
-  log "Banner SSH (${SSH_BANNER_FILE}) berhasil disimpan."
+  ok "Banner SSH (${SSH_BANNER_FILE}) berhasil disimpan dan service telah disinkronkan."
   pause
 }
 
@@ -225,6 +229,7 @@ banner_set_ssh_url() {
   tmp_file="$(mktemp /tmp/banner.XXXXXX 2>/dev/null || echo "/tmp/banner.tmp")"
   if curl -fsSL --connect-timeout 10 --max-time 20 "${url}" -o "${tmp_file}" 2>/dev/null || wget -q -T 10 -O "${tmp_file}" "${url}" 2>/dev/null; then
     if [[ -s "${tmp_file}" ]]; then
+      info "Menyimpan banner dan memperbarui konfigurasi SSH & Dropbear..."
       local raw_content final_content
       raw_content="$(cat "${tmp_file}")"
       final_content="$(banner_apply_watermark_if_trial "${raw_content}")"
@@ -232,7 +237,7 @@ banner_set_ssh_url() {
       rm -f "${tmp_file}" 2>/dev/null || true
       chmod 644 "${SSH_BANNER_FILE}" 2>/dev/null || true
       banner_sync_ssh_config "${SSH_BANNER_FILE}"
-      log "Banner SSH berhasil diunduh dan disimpan ke ${SSH_BANNER_FILE}."
+      ok "Banner SSH berhasil diunduh dan disimpan ke ${SSH_BANNER_FILE}."
     else
       rm -f "${tmp_file}" 2>/dev/null || true
       warn "File hasil unduhan kosong."
@@ -252,16 +257,19 @@ banner_set_motd_manual() {
   echo "Akhiri input dengan mengetik 'EOF' pada baris baru (atau ketik 'batal' untuk keluar):"
   hr
   local line buffer=""
-  while IFS= read -r line; do
-    if [[ "${line}" == "EOF" ]]; then
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    local clean_line="${line%$'\r'}"
+    clean_line="${clean_line#"${clean_line%%[![:space:]]*}"}"
+    clean_line="${clean_line%"${clean_line##*[![:space:]]}"}"
+    if [[ "${clean_line^^}" == "EOF" ]]; then
       break
     fi
-    if [[ "${line}" == "batal" || "${line}" == "cancel" ]]; then
+    if [[ "${clean_line,,}" == "batal" || "${clean_line,,}" == "cancel" ]]; then
       warn "Input manual MOTD dibatalkan."
       pause
       return 0
     fi
-    buffer+="${line}"$'\n'
+    buffer+="${line%$'\r'}"$'\n'
   done
   if [[ -z "${buffer// /}" ]]; then
     warn "Teks MOTD kosong. Perubahan dibatalkan."
@@ -270,7 +278,7 @@ banner_set_motd_manual() {
   fi
   printf '%s' "${buffer}" > "${SSH_MOTD_FILE}"
   chmod 644 "${SSH_MOTD_FILE}" 2>/dev/null || true
-  log "Banner Post-Login (${SSH_MOTD_FILE}) berhasil disimpan."
+  ok "Banner Post-Login (${SSH_MOTD_FILE}) berhasil disimpan."
   pause
 }
 
