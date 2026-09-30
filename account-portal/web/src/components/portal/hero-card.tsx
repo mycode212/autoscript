@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, Copy, Database, LocateFixed, ShieldCheck, User } from "lucide-react"
+import { CalendarDays, Check, Copy, Database, Network, ShieldCheck, User } from "lucide-react"
 import { useState } from "react"
 
 import type { AccountSummary } from "@/types/portal"
@@ -7,13 +7,12 @@ import { ThemeMenu } from "@/components/theme/theme-menu"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { activeIpHint, daysLabel, nextAction, protocolLabel, statusVariant } from "@/lib/portal"
+import { daysLabel, nextAction, protocolLabel, quotaPercent, statusVariant } from "@/lib/portal"
 
 export function HeroCard({ summary }: { summary: AccountSummary }) {
   const [copied, setCopied] = useState(false)
   const action = nextAction(summary)
-  const problemTitle =
-    summary.status === "blocked" ? "Akun diblokir" : summary.status === "expired" ? "Masa aktif habis" : ""
+  const percent = quotaPercent(summary)
 
   const handleCopy = (text: string) => {
     void navigator.clipboard.writeText(text)
@@ -22,28 +21,29 @@ export function HeroCard({ summary }: { summary: AccountSummary }) {
   }
 
   return (
-    <Card className="relative overflow-hidden border-border/70 bg-gradient-to-br from-card via-card/95 to-card/90 p-5 shadow-lg backdrop-blur-xl sm:p-6 lg:p-7">
-      {/* Ambient background glow */}
-      <div className="pointer-events-none absolute -right-20 -top-20 size-72 rounded-full bg-primary/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 -left-20 size-72 rounded-full bg-indigo-500/10 blur-3xl" />
+    <Card className="relative overflow-hidden border border-slate-800 bg-slate-900/80 p-5 shadow-2xl backdrop-blur-2xl sm:p-6 lg:p-7">
+      {/* Ambient glowing radial lights */}
+      <div className="pointer-events-none absolute -right-20 -top-20 size-80 rounded-full bg-cyan-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 -left-20 size-80 rounded-full bg-indigo-500/10 blur-3xl" />
 
-      {/* Top bar header */}
-      <div className="relative mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/30">
-            <ShieldCheck className="size-4" />
+      {/* Top Brand Bar */}
+      <div className="relative mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/25">
+            <ShieldCheck className="size-5 text-slate-950 font-bold" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-extrabold uppercase tracking-widest text-primary">ArjunaCloud</span>
-              <span className="text-xs text-muted-foreground/60">•</span>
-              <span className="text-xs font-medium text-muted-foreground">User Portal</span>
+              <span className="text-sm font-black tracking-wider text-white">ARJUNACLOUD</span>
+              <span className="rounded-md bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cyan-400 ring-1 ring-cyan-500/20">
+                USER PORTAL
+              </span>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-500 dark:text-emerald-400">
+          <div className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-3 py-1 text-xs font-semibold text-emerald-400">
             <span className="relative flex size-2">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
@@ -54,104 +54,138 @@ export function HeroCard({ summary }: { summary: AccountSummary }) {
         </div>
       </div>
 
-      {/* Main hero content */}
-      <div className="relative grid min-w-0 gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
-          {/* Avatar Icon */}
-          <div className="relative flex size-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent ring-1 ring-primary/30 shadow-inner sm:size-20">
-            <User className="size-8 text-primary sm:size-10" />
-            <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-background ring-2 ring-border">
-              <span className="size-2.5 rounded-full bg-emerald-500" />
+      {/* User Identity Info */}
+      <div className="relative mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="relative flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-b from-slate-800 to-slate-950 ring-1 ring-white/10 shadow-xl sm:size-16">
+            <User className="size-7 text-cyan-400 sm:size-8" />
+            <span className="absolute -bottom-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-slate-900 ring-2 ring-slate-950">
+              <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
             </span>
           </div>
 
-          {/* User info & badges */}
-          <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl lg:text-4xl">
+          <div className="min-w-0 space-y-1.5">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
                 {summary.username}
               </h1>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="size-8 rounded-lg p-0 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                className="h-7 border-slate-700 bg-slate-800/80 px-2 text-xs font-semibold text-slate-300 hover:border-cyan-500 hover:bg-cyan-950/40 hover:text-cyan-300"
                 onClick={() => handleCopy(summary.username)}
-                title="Salin Username"
               >
-                {copied ? <CheckCircle2 className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
+                {copied ? <Check className="mr-1 size-3 text-emerald-400" /> : <Copy className="mr-1 size-3" />}
+                {copied ? "Tersalin" : "Salin"}
               </Button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="accent" className="border-primary/40 bg-primary/15 font-mono text-[11px] font-bold tracking-wider text-primary">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <Badge variant="outline" className="border-cyan-500/30 bg-cyan-950/40 font-mono text-[11px] font-bold text-cyan-300">
                 {protocolLabel(summary.protocol)}
               </Badge>
-              <Badge variant={statusVariant(summary.status)} className="font-mono text-[11px] font-bold tracking-wider">
-                ● {summary.status.toUpperCase()}
+              <Badge variant={statusVariant(summary.status)} className="font-mono text-[11px] font-bold uppercase tracking-wider">
+                ● {summary.status}
               </Badge>
-              <span className="text-xs text-muted-foreground">
-                Expired: <span className="font-semibold text-foreground">{summary.valid_until}</span>
+              <span className="text-slate-400">
+                Berlaku s/d <span className="font-mono font-bold text-slate-200">{summary.valid_until}</span>
               </span>
             </div>
           </div>
         </div>
 
-        {/* Quick KPI stats badges on right */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:gap-3.5">
-          <div className="rounded-xl border border-border/70 bg-card/60 p-3.5 backdrop-blur-sm transition-all hover:border-primary/40 hover:bg-card">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              <CalendarDays className="size-3.5 text-primary" />
-              Masa Aktif
-            </div>
-            <div className="mt-1 text-lg font-black tracking-tight text-foreground sm:text-xl">
-              {daysLabel(summary.days_remaining)}
-            </div>
-            <div className="text-[11px] text-muted-foreground">Sisa hari aktif</div>
+        {/* Warning / Notice Banner if near expiry */}
+        {action.text ? (
+          <div
+            className={`rounded-xl border px-3.5 py-2 text-xs font-semibold ${
+              action.tone === "destructive"
+                ? "border-rose-500/40 bg-rose-950/40 text-rose-300"
+                : "border-amber-500/40 bg-amber-950/40 text-amber-300"
+            }`}
+          >
+            {action.text}
           </div>
+        ) : null}
+      </div>
 
-          <div className="rounded-xl border border-border/70 bg-card/60 p-3.5 backdrop-blur-sm transition-all hover:border-primary/40 hover:bg-card">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              <LocateFixed className="size-3.5 text-cyan-400" />
-              IP Terhubung
+      {/* 4-KPI Metric Cards Row */}
+      <div className="relative grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
+        {/* Metric 1: Masa Aktif */}
+        <div className="rounded-2xl border border-slate-800/90 bg-slate-950/60 p-4 backdrop-blur-md transition-all hover:border-cyan-500/30">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Masa Aktif</span>
+            <div className="flex size-7 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400">
+              <CalendarDays className="size-4" />
             </div>
-            <div className="mt-1 font-mono text-sm font-bold tracking-tight text-foreground sm:text-base">
-              {summary.active_ip || "Offline"}
-            </div>
-            <div className="truncate text-[11px] text-muted-foreground">{activeIpHint(summary)}</div>
           </div>
+          <div className="mt-2 text-xl font-black text-white sm:text-2xl">
+            {daysLabel(summary.days_remaining)}
+          </div>
+          <div className="mt-1 text-xs text-slate-400">
+            {summary.valid_until}
+          </div>
+        </div>
 
-          <div className="col-span-2 rounded-xl border border-border/70 bg-card/60 p-3.5 backdrop-blur-sm transition-all hover:border-primary/40 hover:bg-card sm:col-span-1">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              <Database className="size-3.5 text-emerald-400" />
-              Sisa Kuota
+        {/* Metric 2: Sisa Kuota */}
+        <div className="rounded-2xl border border-slate-800/90 bg-slate-950/60 p-4 backdrop-blur-md transition-all hover:border-emerald-500/30">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Sisa Kuota</span>
+            <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+              <Database className="size-4" />
             </div>
-            <div className="mt-1 font-mono text-base font-bold tracking-tight text-foreground sm:text-lg">
-              {summary.quota_remaining}
+          </div>
+          <div className="mt-2 text-xl font-black text-white sm:text-2xl">
+            {summary.quota_remaining}
+          </div>
+          <div className="mt-1 flex items-center justify-between text-xs text-slate-400">
+            <span>Limit: {summary.quota_limit}</span>
+            <span className="font-mono text-emerald-400">{percent}%</span>
+          </div>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-500"
+              style={{ width: `${Math.min(100, percent)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Metric 3: IP Terhubung */}
+        <div className="rounded-2xl border border-slate-800/90 bg-slate-950/60 p-4 backdrop-blur-md transition-all hover:border-cyan-500/30">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">IP Terhubung</span>
+            <div className="flex size-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
+              <Network className="size-4" />
             </div>
-            <div className="text-[11px] text-muted-foreground">Dari {summary.quota_limit}</div>
+          </div>
+          <div className="mt-2 font-mono text-base font-bold text-white sm:text-lg truncate">
+            {summary.active_ip || "Offline"}
+          </div>
+          <div className="mt-1 text-xs text-slate-400">
+            {summary.active_ip ? "Sedang aktif digunakan" : "Belum terhubung"}
+          </div>
+        </div>
+
+        {/* Metric 4: Limit Proteksi */}
+        <div className="rounded-2xl border border-slate-800/90 bg-slate-950/60 p-4 backdrop-blur-md transition-all hover:border-indigo-500/30">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Multi-Login & Speed</span>
+            <div className="flex size-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
+              <ShieldCheck className="size-4" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-center gap-2 text-sm font-bold text-white sm:text-base">
+            <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-200">
+              IP: {summary.limit_ip || "OFF"}
+            </span>
+            <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-200">
+              Speed: {summary.limit_speed || "OFF"}
+            </span>
+          </div>
+          <div className="mt-1 text-xs text-slate-400">
+            Sistem proteksi aktif
           </div>
         </div>
       </div>
-
-      {/* Action / Warning Notice */}
-      {action.text ? (
-        <div
-          className={`mt-4 rounded-xl border px-3.5 py-2.5 text-xs font-semibold ${
-            action.tone === "destructive"
-              ? "border-rose-500/30 bg-rose-500/10 text-rose-500"
-              : "border-amber-500/30 bg-amber-500/10 text-amber-500"
-          }`}
-        >
-          {action.text}
-        </div>
-      ) : null}
-
-      {problemTitle ? (
-        <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-500">
-          <p className="font-bold">{problemTitle}</p>
-          <p>{summary.status === "blocked" ? "Akses akun dibatasi sampai status dipulihkan." : "Akun tidak bisa dipakai sampai diperpanjang."}</p>
-        </div>
-      ) : null}
     </Card>
   )
 }

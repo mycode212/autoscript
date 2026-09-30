@@ -258,35 +258,34 @@ export function TrafficCard({
   }
 
   return (
-    <Card className="h-full overflow-hidden">
-      <CardHeader className="gap-3 pb-4">
+    <Card className="h-full overflow-hidden border-slate-800 bg-slate-900/80 shadow-2xl backdrop-blur-2xl">
+      <CardHeader className="border-b border-slate-800/80 pb-4">
         <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
           <div className="space-y-1">
-            <CardTitle>Traffic Realtime</CardTitle>
-            <p className="text-xs text-muted-foreground sm:text-sm">
+            <CardTitle className="text-base font-bold text-white">Traffic Realtime</CardTitle>
+            <p className="text-xs text-slate-400">
               {traffic?.active ? "Traffic realtime terdeteksi untuk akun ini." : "Belum ada traffic realtime untuk akun ini."}
             </p>
           </div>
-          <Badge variant={traffic?.active ? "success" : "warning"} className="w-fit rounded-full px-3 py-1.5 text-[11px] sm:text-xs">
+          <Badge variant={traffic?.active ? "success" : "outline"} className="w-fit rounded-full px-3 py-1 text-[11px] font-semibold text-emerald-400 border-emerald-500/30 bg-emerald-950/40">
             <Activity className="mr-1 size-3.5" />
-            {traffic?.active ? "Sedang aktif" : "Tidak ada traffic saat ini"}
+            {traffic?.active ? "Sedang aktif" : "Tidak ada traffic"}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 p-5 sm:p-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+          <div className="flex gap-2">
             {availableWindows.map((seconds) => {
               const active = resolvedWindow === seconds
               return (
                 <Button
                   key={seconds}
-                  variant={active ? "default" : "secondary"}
                   size="sm"
-                  className={`h-9 rounded-full px-3 text-xs transition-all sm:px-4 sm:text-sm ${
+                  className={`h-8 rounded-xl px-3 text-xs font-semibold transition-all ${
                     active
-                      ? "shadow-[0_12px_28px_rgba(214,107,34,0.22)]"
-                      : "border border-border/70 bg-background/80 text-foreground hover:bg-background"
+                      ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-bold shadow-lg shadow-cyan-500/20"
+                      : "border border-slate-800 bg-slate-950/60 text-slate-300 hover:bg-slate-800 hover:text-white"
                   }`}
                   onClick={() => setSelectedWindow(seconds)}
                 >
@@ -683,14 +682,14 @@ function Stat({
   dark?: boolean
 }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-border/70 bg-card/60 p-3.5 backdrop-blur-sm transition-all hover:border-primary/40 hover:bg-card sm:p-4">
-      <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-        <span className="text-primary">{icon}</span>
+    <div className="min-w-0 rounded-2xl border border-slate-800 bg-slate-950/60 p-3.5 backdrop-blur-md transition-all hover:border-cyan-500/30 sm:p-4">
+      <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+        <span className="text-cyan-400">{icon}</span>
         {label}
       </p>
-      <p className="mt-1.5 break-all font-mono text-lg font-black tracking-tight text-foreground sm:text-2xl">{value}</p>
+      <p className="mt-1.5 break-all font-mono text-lg font-black tracking-tight text-white sm:text-2xl">{value}</p>
       {caption ? (
-        <p className="mt-1 text-[11px] font-medium text-muted-foreground">{caption}</p>
+        <p className="mt-1 text-[11px] font-medium text-slate-500">{caption}</p>
       ) : null}
     </div>
   )

@@ -6,7 +6,7 @@ const STORAGE_KEY = "autoscript-account-portal-theme"
 
 function resolveTheme(preference: ThemePreference, systemDark: boolean) {
   if (preference === "system") {
-    return systemDark ? "dark" : "light"
+    return systemDark ? "dark" : "dark"
   }
 
   return preference
@@ -14,13 +14,13 @@ function resolveTheme(preference: ThemePreference, systemDark: boolean) {
 
 export function ThemeProvider({ children }: PropsWithChildren) {
   const [preference, setPreference] = useState<ThemePreference>(() => {
-    if (typeof document === "undefined") return "system"
+    if (typeof document === "undefined") return "dark"
     const stored = document.documentElement.dataset.themePreference
-    return stored === "light" || stored === "dark" || stored === "system" ? stored : "system"
+    return stored === "light" || stored === "dark" ? stored : "dark"
   })
   const [systemDark, setSystemDark] = useState(() => {
-    if (typeof document === "undefined") return false
-    return document.documentElement.classList.contains("dark")
+    if (typeof document === "undefined") return true
+    return true
   })
 
   useEffect(() => {

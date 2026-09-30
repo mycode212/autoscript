@@ -11,20 +11,10 @@
     <script>
       const storageKey = "autoscript-account-portal-theme"
       const storedPreference = window.localStorage.getItem(storageKey)
-      const preference =
-        storedPreference === "light" || storedPreference === "dark" || storedPreference === "system"
-          ? storedPreference
-          : "system"
-      const resolvedTheme =
-        preference === "system"
-          ? window.matchMedia("(prefers-color-scheme: dark)").matches
-            ? "dark"
-            : "light"
-          : preference
-
-      document.documentElement.classList.toggle("dark", resolvedTheme === "dark")
+      const preference = storedPreference === "light" ? "light" : "dark"
+      document.documentElement.classList.toggle("dark", preference === "dark")
       document.documentElement.dataset.themePreference = preference
-      document.documentElement.style.colorScheme = resolvedTheme
+      document.documentElement.style.colorScheme = preference
     </script>
   </head>
   <body>

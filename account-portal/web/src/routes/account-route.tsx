@@ -2,14 +2,11 @@ import { lazy, Suspense, useEffect } from "react"
 import { AlertTriangle, RefreshCw } from "lucide-react"
 import { useParams } from "react-router-dom"
 
-import { AccessCard } from "@/components/portal/access-card"
 import { CredentialsCard } from "@/components/portal/credentials-card"
 import { HeroCard } from "@/components/portal/hero-card"
 import { ImportLinksCard } from "@/components/portal/import-links-card"
-import { QuotaCard } from "@/components/portal/quota-card"
-import { SummaryCard } from "@/components/portal/summary-card"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { useAccountSummary, useAccountTraffic } from "@/hooks/use-portal-data"
 
@@ -35,9 +32,9 @@ export function AccountRoute() {
 
   if (!token) {
     return (
-      <Card>
-        <CardContent className="p-8">
-          <p className="text-lg font-semibold text-foreground">Token portal tidak ditemukan.</p>
+      <Card className="border-slate-800 bg-slate-900/80 p-8 text-center text-white shadow-2xl">
+        <CardContent>
+          <p className="text-lg font-semibold">Token portal tidak ditemukan.</p>
         </CardContent>
       </Card>
     )
@@ -45,10 +42,10 @@ export function AccountRoute() {
 
   if (summary.loading && !summary.data) {
     return (
-      <Card>
-        <CardContent className="flex min-h-64 items-center justify-center p-8 text-muted-foreground">
-          <RefreshCw className="mr-3 size-4 animate-spin" />
-          Memuat info akun...
+      <Card className="border-slate-800 bg-slate-900/80 p-12 text-center text-slate-400 shadow-2xl">
+        <CardContent className="flex items-center justify-center gap-3">
+          <RefreshCw className="size-5 animate-spin text-cyan-400" />
+          <span>Memuat info akun portal...</span>
         </CardContent>
       </Card>
     )
@@ -56,10 +53,10 @@ export function AccountRoute() {
 
   if (!summary.data) {
     return (
-      <Card>
-        <CardContent className="flex min-h-64 items-center justify-center gap-3 p-8 text-destructive">
-          <AlertTriangle className="size-4" />
-          {summary.error ?? "Portal akun tidak ditemukan."}
+      <Card className="border-slate-800 bg-slate-900/80 p-8 text-center text-rose-400 shadow-2xl">
+        <CardContent className="flex items-center justify-center gap-3">
+          <AlertTriangle className="size-5" />
+          <span>{summary.error ?? "Portal akun tidak ditemukan."}</span>
         </CardContent>
       </Card>
     )
@@ -68,34 +65,34 @@ export function AccountRoute() {
   return (
     <div className="grid min-w-0 gap-6">
       {(summary.stale || traffic.stale) && (
-        <Badge variant="warning" className="w-fit px-4 py-2 normal-case tracking-normal">
+        <Badge variant="outline" className="w-fit border-amber-500/40 bg-amber-950/40 px-3 py-1.5 font-sans text-xs text-amber-300">
           Menampilkan data terakhir. Koneksi API sedang tertunda.
         </Badge>
       )}
+
+      {/* Hero Brand & 4-KPI Metric Row */}
       <HeroCard summary={summary.data} />
-      <section className="grid min-w-0 grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-[minmax(0,1.52fr)_minmax(380px,0.92fr)] xl:items-start 2xl:grid-cols-[minmax(0,1.6fr)_minmax(410px,0.9fr)]">
-        <div className="self-start md:col-span-2 xl:col-span-1">
+
+      {/* Main 2-Column Dashboard Grid */}
+      <section className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+        {/* Left Column (7 cols on desktop): Traffic Chart + Import Links */}
+        <div className="space-y-6 lg:col-span-7">
           <Suspense
             fallback={
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle>Traffic Realtime</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">Memuat chart traffic…</CardContent>
+              <Card className="border-slate-800 bg-slate-900/80 p-8 text-slate-400">
+                <CardContent>Memuat grafik traffic realtime...</CardContent>
               </Card>
             }
           >
             <TrafficCard traffic={traffic.data} mobile={mobile} loading={traffic.loading} error={traffic.error} />
           </Suspense>
-        </div>
-        <div className="grid self-start gap-6 md:col-span-2 xl:col-span-1">
-          <SummaryCard summary={summary.data} />
-          <QuotaCard summary={summary.data} />
-          <CredentialsCard summary={summary.data} />
-          <AccessCard summary={summary.data} />
-        </div>
-        <div className="self-start md:col-span-2 xl:col-span-2">
+
           <ImportLinksCard summary={summary.data} />
+        </div>
+
+        {/* Right Column (5 cols on desktop): Unified Credentials & Server Access */}
+        <div className="space-y-6 lg:col-span-5">
+          <CredentialsCard summary={summary.data} />
         </div>
       </section>
     </div>
