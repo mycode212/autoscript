@@ -175,10 +175,10 @@ export function HeroCard({ summary }: { summary: AccountSummary }) {
           </div>
           <div className="mt-2 flex items-center gap-2 text-sm font-bold text-white sm:text-base">
             <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-200">
-              IP: {summary.limit_ip || "OFF"}
+              IP: {summary.ip_limit_text || "OFF"}
             </span>
             <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-200">
-              Speed: {summary.limit_speed || "OFF"}
+              Speed: {summary.speed_limit_text || "OFF"}
             </span>
           </div>
           <div className="mt-1 text-xs text-slate-400">
