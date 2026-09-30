@@ -114,7 +114,7 @@ main_menu() {
     main_menu_license_footer_print
     echo
     if ! read -r -p "Select Menu : " c; then
-      echo
+      echo -e "\n${UI_SUCCESS}Terima kasih telah menggunakan AutoScript ArjunaCloud!${UI_RESET}\n"
       exit 0
     fi
     case "${c}" in
@@ -131,7 +131,10 @@ main_menu() {
       11|maintenance|maint) run_action "Maintenance" maintenance_menu ;;
       12|analytics|traffic) run_action "Traffic" traffic_analytics_menu ;;
       13|tools) tools_menu ;;
-      0|kembali|k|back|b|x) exit 0 ;;
+      0|kembali|k|back|b|x|keluar)
+        echo -e "\n${UI_SUCCESS}Terima kasih telah menggunakan AutoScript ArjunaCloud!${UI_RESET}\n"
+        exit 0
+        ;;
       *) invalid_choice ;;
     esac
   done

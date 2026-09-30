@@ -1,6 +1,33 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 
+manage_loader_spin_step() {
+  local label="$1"
+  local -a frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+  if [[ -t 1 ]]; then
+    local i
+    for (( i=0; i<6; i++ )); do
+      local f="${frames[i % ${#frames[@]}]}"
+      printf "\r  \033[1;33m%s\033[0m \033[1;37m%-28s\033[0m" "${f}" "${label}"
+      sleep 0.04
+    done
+  fi
+}
+
+manage_loader_done_step() {
+  local label="$1"
+  local status="${2:-OK}"
+  local mark="\033[1;32m✓\033[0m"
+  local badge="\033[1;32mOK\033[0m"
+  if [[ "${status}" != "OK" ]]; then
+    mark="\033[1;31m✗\033[0m"
+    badge="\033[1;31mFAIL\033[0m"
+  fi
+  if [[ -t 1 ]]; then
+    printf "\r  %b \033[1;37m%-28s\033[0m [ %b ]\n" "${mark}" "${label}" "${badge}"
+  fi
+}
+
 main() {
   need_root
   local action="${1:-}"
@@ -13,21 +40,28 @@ main() {
       printf '\033[1;36m╭────────────────────────────────────────────────────────────╮\033[0m\n'
       printf '\033[1;36m│\033[0m  \033[1m\033[1;37mMembuka Panel\033[0m                                             \033[1;36m│\033[0m\n'
       printf '\033[1;36m╰────────────────────────────────────────────────────────────╯\033[0m\n\n'
-      printf "  \033[1;36m->\033[0m \033[1;37m%-28s\033[0m [\033[1;32m OK \033[0m]\n" "Memuat Modules ...."
     fi
-    printf "  \033[1;36m->\033[0m \033[1;37m%-28s\033[0m " "Memuat Service ...."
+
+    # 1. Modules
+    manage_loader_spin_step "Memuat Modules ...."
+    manage_loader_done_step "Memuat Modules ...." "OK"
+
+    # 2. Service
+    manage_loader_spin_step "Memuat Service ...."
   fi
 
   if ! manage_license_guard_preflight "${action}"; then
     if [[ "${is_interactive_splash}" == "1" ]]; then
-      printf '[\033[1;31m FAIL \033[0m]\n'
+      manage_loader_done_step "Memuat Service ...." "FAIL"
     fi
     return 1
   fi
 
   if [[ "${is_interactive_splash}" == "1" ]]; then
-    printf '[\033[1;32m OK \033[0m]\n'
-    printf "  \033[1;36m->\033[0m \033[1;37m%-28s\033[0m " "Memuat Database ...."
+    manage_loader_done_step "Memuat Service ...." "OK"
+
+    # 3. Database
+    manage_loader_spin_step "Memuat Database ...."
   fi
 
   init_runtime_dirs
@@ -37,9 +71,9 @@ main() {
   fi
 
   if [[ "${is_interactive_splash}" == "1" ]]; then
-    printf '[\033[1;32m OK \033[0m]\n\n'
-    printf '  \033[1;32m✓\033[0m \033[1m\033[1;32mSystem Siap\033[0m\n'
-    sleep 0.3
+    manage_loader_done_step "Memuat Database ...." "OK"
+    printf '\n  \033[1;32m✓\033[0m \033[1m\033[1;32mSystem Siap\033[0m\n'
+    sleep 0.35
   fi
 
   case "${action}" in

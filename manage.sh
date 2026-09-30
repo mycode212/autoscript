@@ -12,7 +12,6 @@ if [[ -t 1 && $# -eq 0 ]]; then
   printf '\033[1;36m╭────────────────────────────────────────────────────────────╮\033[0m\n'
   printf '\033[1;36m│\033[0m  \033[1m\033[1;37mMembuka Panel\033[0m                                             \033[1;36m│\033[0m\n'
   printf '\033[1;36m╰────────────────────────────────────────────────────────────╯\033[0m\n\n'
-  printf "  \033[1;36m->\033[0m \033[1;37m%-28s\033[0m " "Memuat Modules ...."
 fi
 
 manage_bootstrap_path_trusted() {
@@ -4327,9 +4326,5 @@ for _mod in "${MANAGE_REQUIRED_MODULES[@]}"; do
   manage_source_required "${_mod}"
 done
 unset _mod
-
-if [[ "${MANAGE_SPLASH_STARTED:-0}" == "1" ]]; then
-  printf '[\033[1;32m OK \033[0m]\n'
-fi
 
 main "$@"
