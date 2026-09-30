@@ -40,42 +40,63 @@ func ParseHTTPRequest(initial []byte) (HTTPRequest, bool) {
 	if len(lines) == 0 {
 		return HTTPRequest{}, false
 	}
-	requestLine := strings.TrimSpace(strings.TrimRight(string(lines[0]), "\r"))
-	fields := strings.Fields(requestLine)
-	if len(fields) < 3 {
-		return HTTPRequest{}, false
-	}
-	req := HTTPRequest{
-		Method:  fields[0],
-		Path:    normalizeTargetPath(fields[1]),
-		Version: fields[2],
-	}
-	if req.Method == "PRI" && fields[1] == "*" && fields[2] == "HTTP/2.0" {
-		req.IsHTTP2Preface = true
-		req.Path = "/"
-		return req, true
-	}
-	for _, raw := range lines[1:] {
-		line := strings.TrimSpace(strings.TrimRight(string(raw), "\r"))
-		if line == "" {
-			break
-		}
-		key, value, ok := strings.Cut(line, ":")
-		if !ok {
+	var firstReq HTTPRequest
+	var firstReqFound bool
+
+	for i := 0; i < len(lines); i++ {
+		requestLine := strings.TrimSpace(strings.TrimRight(string(lines[i]), "\r"))
+		if requestLine == "" {
 			continue
 		}
-		key = strings.ToLower(strings.TrimSpace(key))
-		value = strings.TrimSpace(value)
-		switch key {
-		case "host":
-			req.Host = value
-		case "upgrade":
-			req.Upgrade = strings.ToLower(value)
-		case "connection":
-			req.Connection = strings.ToLower(value)
+		fields := strings.Fields(requestLine)
+		if len(fields) < 3 {
+			continue
+		}
+		req := HTTPRequest{
+			Method:  fields[0],
+			Path:    normalizeTargetPath(fields[1]),
+			Version: fields[2],
+		}
+		if req.Method == "PRI" && fields[1] == "*" && fields[2] == "HTTP/2.0" {
+			req.IsHTTP2Preface = true
+			req.Path = "/"
+			return req, true
+		}
+		for i = i + 1; i < len(lines); i++ {
+			raw := lines[i]
+			line := strings.TrimSpace(strings.TrimRight(string(raw), "\r"))
+			if line == "" {
+				break
+			}
+			key, value, ok := strings.Cut(line, ":")
+			if !ok {
+				continue
+			}
+			key = strings.ToLower(strings.TrimSpace(key))
+			value = strings.TrimSpace(value)
+			switch key {
+			case "host":
+				req.Host = value
+			case "upgrade":
+				req.Upgrade = strings.ToLower(value)
+			case "connection":
+				req.Connection = strings.ToLower(value)
+			}
+		}
+
+		if !firstReqFound {
+			firstReq = req
+			firstReqFound = true
+		}
+		if isWebSocketRequest(req) {
+			return req, true
 		}
 	}
-	return req, true
+
+	if firstReqFound {
+		return firstReq, true
+	}
+	return HTTPRequest{}, false
 }
 
 func RouteLabel(req HTTPRequest, alpn string) string {

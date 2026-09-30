@@ -42,57 +42,64 @@ func ReadHandshake(reader *bufio.Reader, conn net.Conn, timeout time.Duration, e
 	if reader == nil {
 		reader = bufio.NewReader(conn)
 	}
-	line, err := reader.ReadString('\n')
-	if err != nil {
-		if errors.Is(err, os.ErrDeadlineExceeded) {
-			return nil, "", "", &HandshakeError{Code: 408, Reason: "Request Timeout"}
-		}
-		return nil, "", "", &HandshakeError{Code: 400, Reason: "Bad Request"}
-	}
-	req := strings.Fields(strings.TrimSpace(line))
-	if len(req) < 3 {
-		return nil, "", "", &HandshakeError{Code: 400, Reason: "Bad Request"}
-	}
-	// Method pengecekan di-bypass agar proxy menerima PATCH atau method lainnya.
-	// if strings.ToUpper(req[0]) != "GET" {
-	// 	return nil, "", "", &HandshakeError{Code: 405, Reason: "Method Not Allowed"}
-	// }
-	target := req[1]
-	path := target
-	if strings.Contains(target, "://") {
-		if u, err := netURLSplit(target); err == nil {
-			path = u
-		}
-	}
-	if !PathAllowed(path, expectedPath) {
-		return nil, "", "", &HandshakeError{Code: 404, Reason: "Not Found"}
-	}
 
-	headers := map[string]string{}
 	for {
-		line, err = reader.ReadString('\n')
+		line, err := reader.ReadString('\n')
 		if err != nil {
+			if errors.Is(err, os.ErrDeadlineExceeded) {
+				return nil, "", "", &HandshakeError{Code: 408, Reason: "Request Timeout"}
+			}
 			return nil, "", "", &HandshakeError{Code: 400, Reason: "Bad Request"}
 		}
-		line = strings.TrimRight(line, "\r\n")
-		if line == "" {
-			break
-		}
-		k, v, ok := strings.Cut(line, ":")
-		if !ok {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
 			continue
 		}
-		headers[strings.ToLower(strings.TrimSpace(k))] = strings.TrimSpace(v)
+		req := strings.Fields(trimmed)
+		if len(req) < 3 {
+			continue
+		}
+		target := req[1]
+		path := target
+		if strings.Contains(target, "://") {
+			if u, err := netURLSplit(target); err == nil {
+				path = u
+			}
+		}
+
+		headers := map[string]string{}
+		for {
+			headerLine, err := reader.ReadString('\n')
+			if err != nil {
+				return nil, "", "", &HandshakeError{Code: 400, Reason: "Bad Request"}
+			}
+			headerLine = strings.TrimRight(headerLine, "\r\n")
+			if headerLine == "" {
+				break
+			}
+			k, v, ok := strings.Cut(headerLine, ":")
+			if !ok {
+				continue
+			}
+			headers[strings.ToLower(strings.TrimSpace(k))] = strings.TrimSpace(v)
+		}
+
+		// Jika request ini bukan upgrade websocket (misal probe split payload awal), lanjutkan baca request berikutnya
+		if strings.ToLower(headers["upgrade"]) != "websocket" {
+			continue
+		}
+
+		if !PathAllowed(path, expectedPath) {
+			return nil, "", "", &HandshakeError{Code: 404, Reason: "Not Found"}
+		}
+
+		key := headers["sec-websocket-key"]
+		if strings.TrimSpace(key) == "" {
+			// Default to a dummy key so HTTP Injector / custom payloads without it still work
+			key = "dGhlIHNhbXBsZSBub25jZQ=="
+		}
+		return headers, path, websocketAccept(key), nil
 	}
-	if strings.ToLower(headers["upgrade"]) != "websocket" {
-		return nil, "", "", &HandshakeError{Code: 400, Reason: "Bad Request"}
-	}
-	key := headers["sec-websocket-key"]
-	if strings.TrimSpace(key) == "" {
-		// Default to a dummy key so HTTP Injector payloads without it still work
-		key = "dGhlIHNhbXBsZSBub25jZQ=="
-	}
-	return headers, path, websocketAccept(key), nil
 }
 
 func SendHTTPError(conn net.Conn, code int, reason string) {
