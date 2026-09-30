@@ -96,19 +96,29 @@ api_user_create() {
       return 1
     fi
 
-    # Create Managed State Metadata for QAC & IP Limit Enforcer
-    local state_dir="/var/lib/autoscript/ssh/users"
-    local compat_dir="/etc/autoscript/ssh-users"
-    mkdir -p "${state_dir}" "${compat_dir}" "/etc/autoscript/ssh/account-info"
+    # Create Managed State Metadata for QAC, manage CLI, & IP Limit Enforcer
+    local quota_dir="/opt/quota/ssh"
+    local info_dir="/opt/account/ssh"
+    local info_compat_dir="/opt/quota/account-info"
+    mkdir -p "${quota_dir}" "${info_dir}" "${info_compat_dir}" "/var/lib/autoscript/ssh/users" "/etc/autoscript/ssh-users"
 
-    local state_file="${state_dir}/${username}.json"
-    cat << EOF > "${state_file}"
+    local token
+    token="$(head -c 16 /dev/urandom 2>/dev/null | xxd -p 2>/dev/null || date +%s%N | md5sum | head -c 16)"
+
+    local primary_file="${quota_dir}/${username}@ssh.json"
+    local compat_file="${quota_dir}/${username}.json"
+    local info_file="${info_dir}/${username}@ssh.txt"
+    local info_txt="${info_dir}/${username}.txt"
+    local info_compat_file="${info_compat_dir}/${username}@ssh.txt"
+
+    cat << EOF > "${primary_file}"
 {
-  "managed_by": "autoscript-api",
+  "managed_by": "autoscript-manage",
   "username": "${username}",
   "protocol": "ssh",
   "created_at": "${created_date}",
   "expired_at": "${expired_at}",
+  "sshws_token": "${token}",
   "quota_limit": ${quota_bytes},
   "quota_unit": "binary",
   "quota_used": 0,
@@ -118,15 +128,44 @@ api_user_create() {
     "ip_limit_enabled": ${enable_ip},
     "ip_limit": ${ip_limit},
     "ip_limit_locked": false,
+    "ip_limit_metric": 0,
+    "distinct_ip_count": 0,
+    "distinct_ips": [],
+    "active_sessions_total": 0,
+    "active_sessions_runtime": 0,
+    "active_sessions_dropbear": 0,
     "speed_limit_enabled": ${enable_speed},
     "speed_down_mbit": ${speed_mbps},
     "speed_up_mbit": ${speed_mbps},
-    "account_locked": false
-  }
+    "lock_reason": "",
+    "account_locked": false,
+    "lock_owner": "",
+    "lock_shell_restore": ""
+  },
+  "bootstrap_review_needed": false,
+  "bootstrap_source": "master-panel"
 }
 EOF
-    chmod 600 "${state_file}"
-    cp -f "${state_file}" "${compat_dir}/${username}.json" 2>/dev/null || true
+    chmod 600 "${primary_file}"
+    cp -f "${primary_file}" "${compat_file}" 2>/dev/null || true
+    cp -f "${primary_file}" "/var/lib/autoscript/ssh/users/${username}.json" 2>/dev/null || true
+    cp -f "${primary_file}" "/etc/autoscript/ssh-users/${username}.json" 2>/dev/null || true
+
+    cat << EOF > "${info_file}"
+============================================================
+           INFORMASI AKUN SSH
+============================================================
+Username        : ${username}
+Password        : ${password}
+Created         : ${created_date}
+Expired         : ${expired_at}
+Multi-Login IP  : ${ip_limit} Device
+Speed Limit     : ${speed_mbps} Mbps
+============================================================
+EOF
+    chmod 600 "${info_file}"
+    cp -f "${info_file}" "${info_txt}" 2>/dev/null || true
+    cp -f "${info_file}" "${info_compat_file}" 2>/dev/null || true
 
     api_response_json true "User SSH '${username}' berhasil dibuat." "{\"username\":\"${username}\",\"protocol\":\"ssh\",\"expired_at\":\"${expired_at}\",\"ip_limit\":${ip_limit},\"speed_mbps\":${speed_mbps}}"
     return 0
@@ -148,7 +187,12 @@ api_user_delete() {
   if [[ "${proto}" == "ssh" ]]; then
     userdel -f "${username}" >/dev/null 2>&1 || true
     pkill -u "${username}" >/dev/null 2>&1 || true
-    rm -f "/var/lib/autoscript/ssh/users/${username}.json" "/etc/autoscript/ssh-users/${username}.json" "/etc/autoscript/ssh/account-info/${username}.txt" >/dev/null 2>&1 || true
+    rm -f "/opt/quota/ssh/${username}@ssh.json" \
+          "/opt/quota/ssh/${username}.json" \
+          "/opt/quota/account-info/${username}@ssh.txt" \
+          "/opt/quota/account-info/${username}.txt" \
+          "/var/lib/autoscript/ssh/users/${username}.json" \
+          "/etc/autoscript/ssh-users/${username}.json" >/dev/null 2>&1 || true
 
     api_response_json true "User SSH '${username}' berhasil dihapus." "{\"username\":\"${username}\"}"
     return 0
@@ -171,10 +215,17 @@ api_user_renew() {
   if [[ "${proto}" == "ssh" ]]; then
     usermod -e "${new_expired_at}" "${username}" >/dev/null 2>&1 || true
 
-    local state_file="/var/lib/autoscript/ssh/users/${username}.json"
-    if [[ -f "${state_file}" ]]; then
-      sed -i "s/\"expired_at\": \".*\"/\"expired_at\": \"${new_expired_at}\"/g" "${state_file}"
-      cp -f "${state_file}" "/etc/autoscript/ssh-users/${username}.json" 2>/dev/null || true
+    local primary_file="/opt/quota/ssh/${username}@ssh.json"
+    local compat_file="/opt/quota/ssh/${username}.json"
+
+    if [[ -f "${primary_file}" ]]; then
+      sed -i "s/\"expired_at\": \".*\"/\"expired_at\": \"${new_expired_at}\"/g" "${primary_file}"
+      cp -f "${primary_file}" "${compat_file}" 2>/dev/null || true
+      cp -f "${primary_file}" "/var/lib/autoscript/ssh/users/${username}.json" 2>/dev/null || true
+      cp -f "${primary_file}" "/etc/autoscript/ssh-users/${username}.json" 2>/dev/null || true
+    elif [[ -f "${compat_file}" ]]; then
+      sed -i "s/\"expired_at\": \".*\"/\"expired_at\": \"${new_expired_at}\"/g" "${compat_file}"
+      cp -f "${compat_file}" "${primary_file}" 2>/dev/null || true
     fi
 
     api_response_json true "User SSH '${username}' berhasil diperpanjang hingga ${new_expired_at}." "{\"username\":\"${username}\",\"expired_at\":\"${new_expired_at}\"}"
