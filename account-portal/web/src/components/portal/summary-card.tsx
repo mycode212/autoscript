@@ -9,13 +9,15 @@ import { activeIpHint, daysLabel, protocolLabel, statusVariant } from "@/lib/por
 
 function Item({ label, value, note, icon }: { label: string; value: string; note?: string; icon?: React.ReactNode }) {
   return (
-    <div className="space-y-1">
-      <dt className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-        {icon}
+    <div className="flex items-start justify-between gap-3 border-b border-border/50 py-2.5 last:border-0 last:pb-0">
+      <dt className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+        <span className="text-primary">{icon}</span>
         {label}
       </dt>
-      <dd className="text-base font-bold text-foreground sm:text-lg">{value}</dd>
-      {note ? <p className="text-xs text-muted-foreground sm:text-sm">{note}</p> : null}
+      <div className="text-right">
+        <dd className="font-mono text-sm font-bold text-foreground sm:text-base">{value}</dd>
+        {note ? <p className="text-[11px] text-muted-foreground">{note}</p> : null}
+      </div>
     </div>
   )
 }
@@ -23,18 +25,18 @@ function Item({ label, value, note, icon }: { label: string; value: string; note
 export function SummaryCard({ summary }: { summary: AccountSummary }) {
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="inline-flex items-center gap-2">
-          <FileText className="size-4" />
-          Ringkasan
+          <FileText className="size-4 text-primary" />
+          Ringkasan Akun
         </CardTitle>
+        <div className="flex gap-2">
+          <Badge variant="accent" className="font-mono text-[10px] uppercase">{protocolLabel(summary.protocol)}</Badge>
+          <Badge variant={statusVariant(summary.status)} className="font-mono text-[10px] uppercase">{summary.status}</Badge>
+        </div>
       </CardHeader>
       <CardContent>
-        <dl className="grid gap-4 sm:gap-6">
-          <div className="flex flex-wrap gap-2 sm:gap-3">
-            <Badge variant="accent">{protocolLabel(summary.protocol)}</Badge>
-            <Badge variant={statusVariant(summary.status)}>{summary.status}</Badge>
-          </div>
+        <dl className="grid">
           <Item label="Berlaku Sampai" value={summary.valid_until} icon={<CalendarClock className="size-4" />} />
           <Item label="Masa Aktif" value={daysLabel(summary.days_remaining)} icon={<CalendarDays className="size-4" />} />
           <Item label="Limit IP" value={summary.ip_limit_text} icon={<Shield className="size-4" />} />

@@ -193,52 +193,52 @@ export function TrafficCard({
   const palette: ChartPalette =
     resolvedTheme === "dark"
       ? {
-          total: "#fff1d6",
-          totalSoft: "#f6c98a",
-          totalGlow: "rgba(255, 241, 214, 0.22)",
-          down: "#f2b24f",
-          downSoft: "#b96c24",
-          up: "#d66b22",
-          upSoft: "#8f4317",
-          grid: "rgba(255,226,194,0.10)",
-          tick: "rgba(255,223,190,0.74)",
-          cursor: "rgba(255,226,194,0.36)",
-          dotFill: "#20140e",
+          total: "#38bdf8",
+          totalSoft: "#0284c7",
+          totalGlow: "rgba(56, 189, 248, 0.35)",
+          down: "#10b981",
+          downSoft: "#059669",
+          up: "#a855f7",
+          upSoft: "#7e22ce",
+          grid: "rgba(255, 255, 255, 0.07)",
+          tick: "rgba(148, 163, 184, 0.8)",
+          cursor: "rgba(56, 189, 248, 0.4)",
+          dotFill: "#090d16",
         }
       : {
-          total: "#5b3116",
-          totalSoft: "#b26428",
-          totalGlow: "rgba(91, 49, 22, 0.18)",
-          down: "#d98f36",
-          downSoft: "#a75d20",
-          up: "#9f4e1a",
-          upSoft: "#6d3210",
-          grid: "rgba(151,94,49,0.14)",
-          tick: "rgba(95,55,26,0.72)",
-          cursor: "rgba(151,94,49,0.28)",
+          total: "#0284c7",
+          totalSoft: "#38bdf8",
+          totalGlow: "rgba(2, 132, 199, 0.2)",
+          down: "#059669",
+          downSoft: "#34d399",
+          up: "#7c3aed",
+          upSoft: "#a78bfa",
+          grid: "rgba(0, 0, 0, 0.06)",
+          tick: "rgba(100, 116, 139, 0.8)",
+          cursor: "rgba(2, 132, 199, 0.3)",
           dotFill: "#ffffff",
         }
   const chartShellStyle =
     resolvedTheme === "dark"
       ? {
-          borderColor: "rgba(124,74,34,0.34)",
-          background: "linear-gradient(180deg, rgba(51,34,23,0.98), rgba(23,15,11,0.96))",
-          boxShadow: "inset 0 1px 0 rgba(255,232,204,0.05), 0 26px 58px rgba(9,6,4,0.3)",
+          borderColor: "rgba(255, 255, 255, 0.08)",
+          background: "linear-gradient(180deg, rgba(15, 23, 42, 0.75), rgba(9, 13, 22, 0.95))",
+          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 20px 40px rgba(0, 0, 0, 0.4)",
         }
       : {
-          borderColor: "rgba(180,91,31,0.16)",
-          background: "linear-gradient(180deg, rgba(255,250,244,0.98), rgba(246,235,220,0.96))",
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.92), 0 22px 48px rgba(151,94,49,0.14)",
+          borderColor: "rgba(0, 0, 0, 0.08)",
+          background: "linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(241, 245, 249, 0.9))",
+          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 10px 30px rgba(0, 0, 0, 0.04)",
         }
   const chartGlowStyle =
     resolvedTheme === "dark"
       ? {
           background:
-            "radial-gradient(circle at top left, rgba(242,178,79,0.14), transparent 28%), radial-gradient(circle at top right, rgba(214,107,34,0.16), transparent 24%), linear-gradient(180deg, rgba(255,255,255,0.02), transparent 32%)",
+            "radial-gradient(circle at top left, rgba(56,189,248,0.12), transparent 30%), radial-gradient(circle at top right, rgba(168,85,247,0.10), transparent 28%)",
         }
       : {
           background:
-            "radial-gradient(circle at top left, rgba(217,143,54,0.12), transparent 28%), radial-gradient(circle at top right, rgba(159,78,26,0.12), transparent 24%), linear-gradient(180deg, rgba(255,255,255,0.28), transparent 32%)",
+            "radial-gradient(circle at top left, rgba(2,132,199,0.08), transparent 30%), radial-gradient(circle at top right, rgba(124,58,237,0.08), transparent 28%)",
         }
 
   const toggleSeries = (series: SeriesKey) => {
@@ -661,11 +661,11 @@ function TrafficTooltip({
 function TooltipRow({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="inline-flex items-center gap-2 text-[#6f4526] dark:text-[#edd9c5]">
+      <span className="inline-flex items-center gap-2 text-muted-foreground">
         <span className="size-2 rounded-full" style={{ backgroundColor: color }} />
         {label}
       </span>
-      <span className="font-semibold text-[#2b180d] dark:text-[#fff7ee]">{value}</span>
+      <span className="font-mono font-bold text-foreground">{value}</span>
     </div>
   )
 }
@@ -675,38 +675,22 @@ function Stat({
   value,
   caption,
   icon,
-  dark,
 }: {
   label: string
   value: string
   caption?: string
   icon?: React.ReactNode
-  dark: boolean
+  dark?: boolean
 }) {
   return (
-    <div
-      className="min-w-0 rounded-[1.25rem] border p-3.5 sm:rounded-3xl sm:p-4"
-      style={
-        dark
-          ? {
-              borderColor: "rgba(124,74,34,0.38)",
-              background: "linear-gradient(180deg, rgba(56,38,27,0.96), rgba(28,19,14,0.94))",
-              boxShadow: "inset 0 1px 0 rgba(255,232,204,0.05), 0 18px 34px rgba(0,0,0,0.28)",
-            }
-          : {
-              borderColor: "hsl(var(--border) / 0.8)",
-              background: "linear-gradient(180deg, rgba(255,255,255,0.94), rgba(250,245,239,0.9))",
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7), 0 18px 34px rgba(24,14,7,0.05)",
-            }
-      }
-    >
-      <p className={`flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] ${dark ? "text-[#d7b18d]" : "text-muted-foreground"}`}>
-        {icon}
+    <div className="min-w-0 rounded-2xl border border-border/70 bg-card/60 p-3.5 backdrop-blur-sm transition-all hover:border-primary/40 hover:bg-card sm:p-4">
+      <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+        <span className="text-primary">{icon}</span>
         {label}
       </p>
-      <p className={`mt-2 break-all text-[1.55rem] font-black tracking-tight sm:text-2xl ${dark ? "text-[#fff3e2]" : "text-foreground"}`}>{value}</p>
+      <p className="mt-1.5 break-all font-mono text-lg font-black tracking-tight text-foreground sm:text-2xl">{value}</p>
       {caption ? (
-        <p className={`mt-1 text-[11px] font-medium ${dark ? "text-[#c8b29d]" : "text-[#7d644e]"}`}>{caption}</p>
+        <p className="mt-1 text-[11px] font-medium text-muted-foreground">{caption}</p>
       ) : null}
     </div>
   )

@@ -9070,6 +9070,8 @@ def op_banner_set_ssh(content: str) -> tuple[bool, str, str]:
 
     _run_cmd(["systemctl", "reload", "ssh"], timeout=10)
     _run_cmd(["systemctl", "reload", "sshd"], timeout=10)
+    _run_cmd(["systemctl", "restart", "sshws-dropbear"], timeout=10)
+    _run_cmd(["systemctl", "restart", "dropbear"], timeout=10)
     return True, title, "Banner SSH (/etc/issue.net) berhasil disimpan."
 
 

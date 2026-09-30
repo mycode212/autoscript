@@ -8,21 +8,49 @@ SSHD_BANNER_CONF="${SSHD_BANNER_CONF:-/etc/ssh/sshd_config.d/50-autoscript-banne
 
 banner_sync_ssh_config() {
   local banner_path="${1:-${SSH_BANNER_FILE}}"
+  
+  # 1. Pastikan permission /etc/issue.net dapat dibaca oleh semua service (sshd & dropbear)
+  if [[ -f "${banner_path}" ]]; then
+    chmod 644 "${banner_path}" 2>/dev/null || true
+    chown root:root "${banner_path}" 2>/dev/null || true
+  fi
+
+  # 2. Sync OpenSSH Config
   if [[ -d "${SSHD_BANNER_CONF_DIR}" ]]; then
     printf 'Banner %s\n' "${banner_path}" > "${SSHD_BANNER_CONF}" 2>/dev/null || true
     chmod 644 "${SSHD_BANNER_CONF}" 2>/dev/null || true
-  elif [[ -f /etc/ssh/sshd_config ]]; then
-    if ! grep -q "^Banner " /etc/ssh/sshd_config 2>/dev/null; then
+  fi
+  if [[ -f /etc/ssh/sshd_config ]]; then
+    # Comment out any 'Banner none'
+    sed -i -E 's|^[[:space:]]*Banner[[:space:]]+none|#Banner none|g' /etc/ssh/sshd_config 2>/dev/null || true
+    if ! grep -q -E "^[[:space:]]*Banner[[:space:]]+" /etc/ssh/sshd_config 2>/dev/null; then
       printf '\nBanner %s\n' "${banner_path}" >> /etc/ssh/sshd_config 2>/dev/null || true
     else
-      sed -i "s|^Banner .*|Banner ${banner_path}|g" /etc/ssh/sshd_config 2>/dev/null || true
+      sed -i -E "s|^[[:space:]]*Banner[[:space:]]+.*|Banner ${banner_path}|g" /etc/ssh/sshd_config 2>/dev/null || true
     fi
   fi
-  # Reload sshd if running
+
+  # 3. Sync Dropbear default configuration if exists
+  if [[ -f /etc/default/dropbear ]]; then
+    if grep -q "^DROPBEAR_BANNER=" /etc/default/dropbear 2>/dev/null; then
+      sed -i "s|^DROPBEAR_BANNER=.*|DROPBEAR_BANNER=\"${banner_path}\"|g" /etc/default/dropbear 2>/dev/null || true
+    else
+      printf '\nDROPBEAR_BANNER="%s"\n' "${banner_path}" >> /etc/default/dropbear 2>/dev/null || true
+    fi
+  fi
+
+  # 4. Restart / Reload OpenSSH & Dropbear Services
   if systemctl is-active --quiet ssh 2>/dev/null; then
-    systemctl reload ssh >/dev/null 2>&1 || true
+    systemctl restart ssh >/dev/null 2>&1 || systemctl reload ssh >/dev/null 2>&1 || true
   elif systemctl is-active --quiet sshd 2>/dev/null; then
-    systemctl reload sshd >/dev/null 2>&1 || true
+    systemctl restart sshd >/dev/null 2>&1 || systemctl reload sshd >/dev/null 2>&1 || true
+  fi
+
+  if systemctl is-active --quiet sshws-dropbear 2>/dev/null; then
+    systemctl restart sshws-dropbear >/dev/null 2>&1 || true
+  fi
+  if systemctl is-active --quiet dropbear 2>/dev/null; then
+    systemctl restart dropbear >/dev/null 2>&1 || true
   fi
 }
 
