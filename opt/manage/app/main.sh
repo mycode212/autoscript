@@ -1,22 +1,43 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 
-manage_loader_spin_step() {
+manage_exit_signal_handler() {
+  if [[ -n "${MANAGE_LOADER_SPIN_PID:-}" ]]; then
+    kill -9 "${MANAGE_LOADER_SPIN_PID}" 2>/dev/null || true
+    wait "${MANAGE_LOADER_SPIN_PID}" 2>/dev/null || true
+    unset MANAGE_LOADER_SPIN_PID
+  fi
+  clear 2>/dev/null || true
+  printf '\n\033[1;32mTerima kasih telah menggunakan AutoScript ArjunaCloud!\033[0m\n\n'
+  exit 0
+}
+
+manage_loader_step_start() {
   local label="$1"
-  local -a frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
   if [[ -t 1 ]]; then
-    local i
-    for (( i=0; i<6; i++ )); do
-      local f="${frames[i % ${#frames[@]}]}"
-      printf "\r  \033[1;33m%s\033[0m \033[1;37m%-28s\033[0m" "${f}" "${label}"
-      sleep 0.04
-    done
+    (
+      local -a frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+      local i=0
+      while :; do
+        local f="${frames[i % ${#frames[@]}]}"
+        printf "\r  \033[1;33m%s\033[0m \033[1;37m%-28s\033[0m" "${f}" "${label}"
+        i=$(( (i + 1) % ${#frames[@]} ))
+        sleep 0.05
+      done
+    ) &
+    MANAGE_LOADER_SPIN_PID=$!
   fi
 }
 
-manage_loader_done_step() {
+manage_loader_step_stop() {
   local label="$1"
   local status="${2:-OK}"
+  if [[ -n "${MANAGE_LOADER_SPIN_PID:-}" ]]; then
+    kill -9 "${MANAGE_LOADER_SPIN_PID}" 2>/dev/null || true
+    wait "${MANAGE_LOADER_SPIN_PID}" 2>/dev/null || true
+    unset MANAGE_LOADER_SPIN_PID
+  fi
+
   local mark="\033[1;32m✓\033[0m"
   local badge="\033[1;32mOK\033[0m"
   if [[ "${status}" != "OK" ]]; then
@@ -32,6 +53,8 @@ main() {
   need_root
   local action="${1:-}"
 
+  trap manage_exit_signal_handler SIGINT SIGTERM
+
   local is_interactive_splash=0
   if [[ -t 1 && -z "${action}" ]]; then
     is_interactive_splash=1
@@ -43,25 +66,28 @@ main() {
     fi
 
     # 1. Modules
-    manage_loader_spin_step "Memuat Modules ...."
-    manage_loader_done_step "Memuat Modules ...." "OK"
+    manage_loader_step_start "Memuat Modules ...."
+    sleep 0.25
+    manage_loader_step_stop "Memuat Modules ...." "OK"
 
     # 2. Service
-    manage_loader_spin_step "Memuat Service ...."
+    manage_loader_step_start "Memuat Service ...."
   fi
 
+  local preflight_rc=0
   if ! manage_license_guard_preflight "${action}"; then
-    if [[ "${is_interactive_splash}" == "1" ]]; then
-      manage_loader_done_step "Memuat Service ...." "FAIL"
-    fi
-    return 1
+    preflight_rc=1
   fi
 
   if [[ "${is_interactive_splash}" == "1" ]]; then
-    manage_loader_done_step "Memuat Service ...." "OK"
+    if [[ ${preflight_rc} -ne 0 ]]; then
+      manage_loader_step_stop "Memuat Service ...." "FAIL"
+      return 1
+    fi
+    manage_loader_step_stop "Memuat Service ...." "OK"
 
     # 3. Database
-    manage_loader_spin_step "Memuat Database ...."
+    manage_loader_step_start "Memuat Database ...."
   fi
 
   init_runtime_dirs
@@ -71,9 +97,10 @@ main() {
   fi
 
   if [[ "${is_interactive_splash}" == "1" ]]; then
-    manage_loader_done_step "Memuat Database ...." "OK"
+    manage_loader_step_stop "Memuat Database ...." "OK"
     printf '\n  \033[1;32m✓\033[0m \033[1m\033[1;32mSystem Siap\033[0m\n'
-    sleep 0.35
+    sleep 0.4
+    clear 2>/dev/null || true
   fi
 
   case "${action}" in
