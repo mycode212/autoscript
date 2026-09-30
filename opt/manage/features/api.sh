@@ -87,17 +87,26 @@ api_user_create() {
   fi
 
   if [[ "${proto}" == "ssh" ]]; then
-    # Create Linux User
+    # Create Linux User with proper bash shell & home directory
     userdel -f "${username}" >/dev/null 2>&1 || true
-    if ! useradd -e "${expired_at}" -s /bin/false -M "${username}"; then
+    local home_dir="/home/${username}"
+    mkdir -p "${home_dir}"
+    
+    if ! useradd -M -d "${home_dir}" -s /bin/bash -e "${expired_at}" "${username}"; then
       api_response_json false "Gagal membuat user Linux '${username}'"
       return 1
     fi
+
+    chown -R "${username}:${username}" "${home_dir}" 2>/dev/null || true
+    chmod 700 "${home_dir}" 2>/dev/null || true
 
     if ! echo "${username}:${password}" | chpasswd; then
       api_response_json false "Gagal mengatur password untuk '${username}'"
       return 1
     fi
+
+    usermod -U "${username}" 2>/dev/null || true
+    usermod -s /bin/bash "${username}" 2>/dev/null || true
 
     # Create Managed State Metadata for QAC, manage CLI, & IP Limit Enforcer
     local quota_dir="/opt/quota/ssh"
