@@ -140,6 +140,22 @@ autoscript_update_perform() {
     install -m 0755 "${AUTOSCRIPT_REPO_DIR}/update.sh" /usr/local/bin/update-script 2>/dev/null || true
   fi
 
+  if [[ -d "/opt/account-portal" && -d "${AUTOSCRIPT_REPO_DIR}/account-portal" ]]; then
+    echo -e "  -> Memperbarui dan me-rebuild frontend Account Portal..."
+    cp -a "${AUTOSCRIPT_REPO_DIR}/account-portal/app/." /opt/account-portal/app/ 2>/dev/null || true
+    if [[ -d "${AUTOSCRIPT_REPO_DIR}/account-portal/web" ]]; then
+      cp -a "${AUTOSCRIPT_REPO_DIR}/account-portal/web/." /opt/account-portal/web/ 2>/dev/null || true
+      if command -v npm >/dev/null 2>&1; then
+        (
+          cd /opt/account-portal/web
+          npm ci --no-audit --no-fund >/dev/null 2>&1
+          npm run build >/dev/null 2>&1
+        ) || true
+      fi
+    fi
+    systemctl restart account-portal >/dev/null 2>&1 || true
+  fi
+
   echo -e "${UI_PRIMARY}[4/6] Memeriksa & menginstal requirements/dependensi baru...${UI_RESET}"
   local needed_pkgs=()
   for pkg in jq curl vnstat net-tools python3 git; do
