@@ -778,6 +778,7 @@ xray_json_file_probe() {
   need_python3
   python3 - <<'PY' "${file}"
 import json
+import re
 import sys
 
 path = sys.argv[1]
@@ -788,7 +789,9 @@ if not path:
 
 try:
   with open(path, 'r', encoding='utf-8') as f:
-    json.load(f)
+    raw = f.read()
+  clean = re.sub(r"//.*?$|/\*.*?\*/", "", raw, flags=re.M | re.S)
+  json.loads(clean)
 except FileNotFoundError:
   print("state=missing")
   print("error=file tidak ditemukan")
@@ -2487,6 +2490,7 @@ warp_xray_proxy_outbounds_sync() {
     cp -a "${XRAY_OUTBOUNDS_CONF}" "${backup_out}" || exit 1
     python3 - <<'PY' "${XRAY_OUTBOUNDS_CONF}" "${tmp_out}" "${bind_addr}" "${SPEED_OUTBOUND_TAG_PREFIX}" "${changed_file}"
 import json
+import re
 import sys
 
 src, dst, bind_addr, speed_prefix, changed_file = sys.argv[1:6]
@@ -2494,7 +2498,8 @@ host, port_raw = bind_addr.rsplit(":", 1)
 port = int(port_raw)
 
 with open(src, "r", encoding="utf-8") as fh:
-  payload = json.load(fh)
+  raw = fh.read()
+payload = json.loads(re.sub(r"//.*?$|/\*.*?\*/", "", raw, flags=re.M | re.S))
 
 outbounds = payload.get("outbounds")
 if not isinstance(outbounds, list):
@@ -4027,11 +4032,12 @@ domain_geosite_menu() {
     fi
     echo "Template (readonly):"
     python3 - <<'PY' "${XRAY_ROUTING_CONF}" 2>/dev/null || true
-import json, sys
+import json, re, sys
 src=sys.argv[1]
 try:
   with open(src,'r',encoding='utf-8') as f:
-    cfg=json.load(f)
+    raw=f.read()
+  cfg=json.loads(re.sub(r"//.*?$|/\*.*?\*/", "", raw, flags=re.M | re.S))
 except Exception:
   raise SystemExit(0)
 rules=((cfg.get('routing') or {}).get('rules') or [])
