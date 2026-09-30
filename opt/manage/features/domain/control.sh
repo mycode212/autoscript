@@ -821,12 +821,26 @@ install_acme_and_issue_cert() {
     fi
   done
 
-  # Helper untuk mengecek validitas sertifikat
+  # 1. Cek apakah sertifikat di install target sudah valid
   local cert_is_valid=0
   if [[ -s "${install_fullchain}" && -s "${install_privkey}" ]]; then
     if openssl x509 -checkend 259200 -noout -in "${install_fullchain}" >/dev/null 2>&1; then
       if openssl x509 -noout -checkhost "${DOMAIN}" -in "${install_fullchain}" >/dev/null 2>&1 || openssl x509 -noout -text -in "${install_fullchain}" 2>/dev/null | grep -Eiq "DNS:([*]\.)?${DOMAIN//./\\.}"; then
         cert_is_valid=1
+      fi
+    fi
+  fi
+
+  # 2. Jika belum, coba install dari cache lokal acme.sh yang sudah ada
+  if [[ "${cert_is_valid}" -eq 0 ]]; then
+    if /root/.acme.sh/acme.sh --install-cert -d "$DOMAIN" \
+      --key-file "${install_privkey}" \
+      --fullchain-file "${install_fullchain}" \
+      --reloadcmd "/bin/true" >/dev/null 2>&1; then
+      if [[ -s "${install_fullchain}" && -s "${install_privkey}" ]]; then
+        if openssl x509 -checkend 259200 -noout -in "${install_fullchain}" >/dev/null 2>&1; then
+          cert_is_valid=1
+        fi
       fi
     fi
   fi
@@ -862,8 +876,10 @@ install_acme_and_issue_cert() {
         /root/.acme.sh/acme.sh --set-default-ca --server "${ca_item}" >/dev/null 2>&1 || true
         /root/.acme.sh/acme.sh --register-account -m "${email}" --server "${ca_item}" >/dev/null 2>&1 || true
 
-        if /root/.acme.sh/acme.sh --issue --dns dns_cf \
-          -d "$DOMAIN" -d "*.$DOMAIN" --server "${ca_item}"; then
+        local issue_rc=0
+        /root/.acme.sh/acme.sh --issue --dns dns_cf \
+          -d "$DOMAIN" -d "*.$DOMAIN" --server "${ca_item}" || issue_rc=$?
+        if (( issue_rc == 0 || issue_rc == 2 )); then
           issue_ok=1
           break
         fi
@@ -900,7 +916,9 @@ install_acme_and_issue_cert() {
         /root/.acme.sh/acme.sh --set-default-ca --server "${ca_item}" >/dev/null 2>&1 || true
         /root/.acme.sh/acme.sh --register-account -m "${email}" --server "${ca_item}" >/dev/null 2>&1 || true
 
-        if /root/.acme.sh/acme.sh --issue --standalone -d "$DOMAIN" --httpport 80 --server "${ca_item}"; then
+        local issue_rc=0
+        /root/.acme.sh/acme.sh --issue --standalone -d "$DOMAIN" --httpport 80 --server "${ca_item}" || issue_rc=$?
+        if (( issue_rc == 0 || issue_rc == 2 )); then
           issue_ok=1
           break
         fi

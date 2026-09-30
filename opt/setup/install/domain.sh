@@ -845,17 +845,17 @@ acme_issue_cert_with_fallback() {
     /root/.acme.sh/acme.sh --set-default-ca --server "${ca}" >/dev/null 2>&1 || true
     /root/.acme.sh/acme.sh --register-account -m "${email}" --server "${ca}" >/dev/null 2>&1 || true
 
+    local issue_rc=0
     if [[ "${mode}" == "dns_cf" ]]; then
-      if /root/.acme.sh/acme.sh --issue --dns dns_cf \
-        -d "${domain}" -d "*.${domain}" --server "${ca}"; then
-        success=1
-        break
-      fi
+      /root/.acme.sh/acme.sh --issue --dns dns_cf \
+        -d "${domain}" -d "*.${domain}" --server "${ca}" || issue_rc=$?
     else
-      if /root/.acme.sh/acme.sh --issue --standalone -d "${domain}" --httpport 80 --server "${ca}"; then
-        success=1
-        break
-      fi
+      /root/.acme.sh/acme.sh --issue --standalone -d "${domain}" --httpport 80 --server "${ca}" || issue_rc=$?
+    fi
+
+    if (( issue_rc == 0 || issue_rc == 2 )); then
+      success=1
+      break
     fi
     warn "Issue sertifikat dengan CA '${ca}' gagal/terkena rate limit, mencoba CA alternatif..."
   done
