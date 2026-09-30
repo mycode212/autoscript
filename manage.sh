@@ -2187,16 +2187,27 @@ req = urllib.request.Request(url, data=payload, headers={"Content-Type": "applic
 
 status_text = fallback_status or "-"
 days_text = "-"
+type_name = "Lifetime Premium"
+is_trial = "0"
 
 try:
     with urllib.request.urlopen(req, timeout=8) as resp:
         data = json.loads(resp.read().decode("utf-8", "replace"))
 except Exception:
-    print(f"{status_text}|{days_text}")
+    print(f"{status_text}|{days_text}|{type_name}|{is_trial}")
     raise SystemExit(0)
 
 remote_status = str(data.get("status") or "").strip().lower()
 days_remaining = data.get("days_remaining")
+lic_type = str(data.get("license_type") or "").strip().lower()
+entry_src = str(data.get("entry_source") or "").strip().lower()
+
+if lic_type == "trial" or entry_src == "public" or data.get("is_trial") is True:
+    is_trial = "1"
+    type_name = "Trial"
+else:
+    is_trial = "0"
+    type_name = "Lifetime Premium"
 
 if remote_status == "active":
     status_text = "aktif"
@@ -2215,12 +2226,12 @@ if isinstance(days_remaining, (int, float)):
 if status_text == "nonaktif" and days_text == "-":
     days_text = "Tidak aktif"
 
-print(f"{status_text}|{days_text}")
+print(f"{status_text}|{days_text}|{type_name}|{is_trial}")
 PY
   )"
 
   if [[ -z "${summary}" ]]; then
-    printf '%s|%s\n' "${fallback_status}" "-"
+    printf '%s|%s|%s|%s\n' "${fallback_status}" "-" "Lifetime Premium" "0"
     return 0
   fi
 
@@ -2294,13 +2305,17 @@ main_info_cache_refresh() {
   MAIN_INFO_CACHE_IP="${ip}"
   MAIN_INFO_CACHE_ISP="${isp}"
   MAIN_INFO_CACHE_COUNTRY="${country}"
-  local license_summary license_status license_days
+  local license_summary license_status license_days license_type_name is_trial
   license_summary="$(main_info_license_summary_get "${ip}")"
-  IFS='|' read -r license_status license_days <<< "${license_summary}"
+  IFS='|' read -r license_status license_days license_type_name is_trial <<< "${license_summary}"
   [[ -n "${license_status}" ]] || license_status="-"
   [[ -n "${license_days}" ]] || license_days="-"
+  [[ -n "${license_type_name}" ]] || license_type_name="Lifetime Premium"
+  [[ -n "${is_trial}" ]] || is_trial="0"
   MAIN_INFO_CACHE_LICENSE_STATUS="${license_status}"
   MAIN_INFO_CACHE_LICENSE_DAYS="${license_days}"
+  MAIN_INFO_CACHE_LICENSE_TYPE_NAME="${license_type_name}"
+  MAIN_INFO_CACHE_IS_TRIAL="${is_trial}"
   MAIN_INFO_CACHE_TS="${now}"
 }
 

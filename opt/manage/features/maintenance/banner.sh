@@ -48,8 +48,44 @@ banner_view_current() {
   pause
 }
 
+banner_is_trial_license() {
+  if [[ "${MAIN_INFO_CACHE_IS_TRIAL:-0}" == "1" || "${MAIN_INFO_CACHE_LICENSE_TYPE_NAME:-}" == "Trial" ]]; then
+    return 0
+  fi
+  if [[ -f "/var/lib/autoscript-license/cache.json" ]]; then
+    if grep -iq '"is_trial":\s*true\|"license_type":\s*"trial"' /var/lib/autoscript-license/cache.json 2>/dev/null; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
+banner_apply_watermark_if_trial() {
+  local content="$1"
+  if ! banner_is_trial_license; then
+    printf '%s\n' "${content}"
+    return 0
+  fi
+
+  if [[ "${content}" =~ "ArjunaCloud" || "${content}" =~ "AutoScript By ArjunaCloud" ]]; then
+    printf '%s\n' "${content}"
+    return 0
+  fi
+
+  if [[ "${content}" =~ "<font" || "${content}" =~ "<br>" || "${content}" =~ "<b>" ]]; then
+    printf '%s<br><font color="#00ff00"><b>================================================</b></font><br><font color="#ffff00"><b>           AutoScript By ArjunaCloud            </b></font><br><font color="#00ff00"><b>================================================</b></font>\n' "${content}"
+  else
+    printf '%s\n\n================================================\n           AutoScript By ArjunaCloud\n================================================\n' "${content}"
+  fi
+}
+
 banner_template_ssh_html() {
-  cat <<'EOF'
+  local is_trial="0"
+  if banner_is_trial_license; then
+    is_trial="1"
+  fi
+
+  cat <<EOF
 <font color="#00ff00"><b>================================================</b></font><br>
 <font color="#00ffff"><b>           PREMIUM SSH & VPN SERVER             </b></font><br>
 <font color="#00ff00"><b>================================================</b></font><br>
@@ -59,10 +95,18 @@ banner_template_ssh_html() {
 <font color="#ffffff">  - DILARANG TORRENT / P2P DOWNLOAD             </font><br>
 <font color="#ffffff">  - DILARANG MULTI-LOGIN MELEBIHI BATAS MAX IP  </font><br>
 <font color="#ff0000"><b>  MELANGGAR RULES = AUTO BAN / TERMINATION!     </b></font><br>
+EOF
+  if [[ "${is_trial}" == "1" ]]; then
+    cat <<EOF
 <font color="#00ff00"><b>================================================</b></font><br>
-<font color="#ffff00"><b>     AutoScript by Autoscript VPS Premium       </b></font><br>
+<font color="#ffff00"><b>           AutoScript By ArjunaCloud            </b></font><br>
 <font color="#00ff00"><b>================================================</b></font><br>
 EOF
+  else
+    cat <<EOF
+<font color="#00ff00"><b>================================================</b></font><br>
+EOF
+  fi
 }
 
 banner_template_motd_text() {
@@ -74,6 +118,8 @@ banner_template_motd_text() {
 ============================================================
   Gunakan perintah 'manage' untuk membuka Control Panel VPS.
   Jaga kerahasiaan kredensial dan patuhi aturan server.
+============================================================
+  Script Ini Dilindungi dan di Kembangkan oleh ArjunaCloud
 ============================================================
 EOF
 }
@@ -120,7 +166,9 @@ banner_set_ssh_manual() {
     pause
     return 0
   fi
-  printf '%s' "${buffer}" > "${SSH_BANNER_FILE}"
+  local final_content
+  final_content="$(banner_apply_watermark_if_trial "${buffer}")"
+  printf '%s' "${final_content}" > "${SSH_BANNER_FILE}"
   chmod 644 "${SSH_BANNER_FILE}" 2>/dev/null || true
   banner_sync_ssh_config "${SSH_BANNER_FILE}"
   log "Banner SSH (${SSH_BANNER_FILE}) berhasil disimpan."
@@ -149,7 +197,11 @@ banner_set_ssh_url() {
   tmp_file="$(mktemp /tmp/banner.XXXXXX 2>/dev/null || echo "/tmp/banner.tmp")"
   if curl -fsSL --connect-timeout 10 --max-time 20 "${url}" -o "${tmp_file}" 2>/dev/null || wget -q -T 10 -O "${tmp_file}" "${url}" 2>/dev/null; then
     if [[ -s "${tmp_file}" ]]; then
-      mv "${tmp_file}" "${SSH_BANNER_FILE}"
+      local raw_content final_content
+      raw_content="$(cat "${tmp_file}")"
+      final_content="$(banner_apply_watermark_if_trial "${raw_content}")"
+      printf '%s\n' "${final_content}" > "${SSH_BANNER_FILE}"
+      rm -f "${tmp_file}" 2>/dev/null || true
       chmod 644 "${SSH_BANNER_FILE}" 2>/dev/null || true
       banner_sync_ssh_config "${SSH_BANNER_FILE}"
       log "Banner SSH berhasil diunduh dan disimpan ke ${SSH_BANNER_FILE}."

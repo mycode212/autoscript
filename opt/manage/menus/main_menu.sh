@@ -69,15 +69,19 @@ main_menu_render_options() {
 }
 
 main_menu_license_footer_print() {
-  local ip license_status license_days
+  local ip license_status license_days license_type_name
   ip="${MAIN_INFO_CACHE_IP:-$(detect_public_ip 2>/dev/null || echo "-")}"
   license_status="${MAIN_INFO_CACHE_LICENSE_STATUS:-ACTIVE}"
   license_days="${MAIN_INFO_CACHE_LICENSE_DAYS:-Lifetime Premium}"
+  license_type_name="${MAIN_INFO_CACHE_LICENSE_TYPE_NAME:-Lifetime Premium}"
+
   echo -e "${UI_BORDER}╭───────────────────────[ LICENSE ]──────────────────────────╮${UI_RESET}"
   printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-10s${UI_RESET} : ${UI_WHITE}%-46s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "License" "${ip:0:46}"
-  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-10s${UI_RESET} : ${UI_WARN}%-46s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "Type" "Lifetime Premium"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-10s${UI_RESET} : ${UI_WARN}%-46s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "Type" "${license_type_name:0:46}"
   local status_str="${license_status} (${license_days})"
   printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-10s${UI_RESET} : ${UI_SUCCESS}%-46s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "Status" "${status_str:0:46}"
+  echo -e "${UI_BORDER}├────────────────────────────────────────────────────────────┤${UI_RESET}"
+  echo -e "${UI_BORDER}│${UI_RESET}  ${UI_MUTED}Script Ini Dilindungi dan di Kembangkan oleh ArjunaCloud${UI_RESET}  ${UI_BORDER}│${UI_RESET}"
   echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
 }
 

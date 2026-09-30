@@ -9036,6 +9036,22 @@ def op_banner_set_ssh(content: str) -> tuple[bool, str, str]:
     if not banner_text:
         return False, title, "Teks banner SSH tidak boleh kosong."
 
+    license_cache = Path("/var/lib/autoscript-license/cache.json")
+    is_trial = False
+    if license_cache.is_file():
+        try:
+            lic_data = json.loads(license_cache.read_text(encoding="utf-8"))
+            if lic_data.get("is_trial") is True or lic_data.get("license_type") == "trial":
+                is_trial = True
+        except Exception:
+            pass
+
+    if is_trial and "ArjunaCloud" not in banner_text:
+        if "<font" in banner_text or "<br>" in banner_text or "<b>" in banner_text:
+            banner_text += '<br><font color="#00ff00"><b>================================================</b></font><br><font color="#ffff00"><b>           AutoScript By ArjunaCloud            </b></font><br><font color="#00ff00"><b>================================================</b></font>'
+        else:
+            banner_text += '\n\n================================================\n           AutoScript By ArjunaCloud\n================================================'
+
     ssh_banner_path = Path("/etc/issue.net")
     try:
         ssh_banner_path.write_text(banner_text + "\n", encoding="utf-8")

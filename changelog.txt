@@ -1,5 +1,6 @@
 * v1.0.0: Initial Core Xray VPN, SSH WS, Dropbear, BadVPN UDPGW, Cloudflare DNS.
-* v1.1.0: Penambahan Multi-protocol QAC Quota Limit, Expiration Cleaner, WARP Routing.
-* v1.2.0: Penambahan Fitur Trial SSH 1 Hari, Banner SSH & MOTD Customizer.
-* v1.3.0: Redesign UI Management Panel dengan Boxed Style & Live Statistics.
-* v1.4.0: Fitur Auto Updater 'update.sh' & CLI command integration.
+* v1.1.0: Multi-protocol QAC Quota Limit, Expiration Cleaner, WARP Routing & DNS steering.
+* v1.2.0: Fitur Trial SSH 1 Hari instan & Customizer Banner SSH (/etc/issue.net) / MOTD.
+* v1.3.0: Redesign UI Management Panel dengan Boxed Style & Live Statistics (Bandwidth, User Stats, Service Status).
+* v1.4.0: Fitur Auto Updater 'update.sh' & shortcut CLI 'update' untuk pembaruan instan tanpa downtime.
+* v1.5.0: Integrasi Jenis Lisensi (Trial vs Lifetime Premium), Watermark Copyright ArjunaCloud untuk lisensi Trial, dan Footer Copyright resmi.
