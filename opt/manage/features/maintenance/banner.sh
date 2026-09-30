@@ -162,7 +162,16 @@ banner_set_ssh_template() {
   if confirm_yn_or_back "Pasang template banner SSH di atas ke ${SSH_BANNER_FILE}?"; then
     banner_template_ssh_html > "${SSH_BANNER_FILE}"
     chmod 644 "${SSH_BANNER_FILE}" 2>/dev/null || true
-    banner_sync_ssh_config "${SSH_BANNER_FILE}"
+    (
+      banner_sync_ssh_config "${SSH_BANNER_FILE}"
+    ) &
+    local sync_pid=$!
+    if declare -F ui_spinner_wait >/dev/null 2>&1; then
+      ui_spinner_wait "${sync_pid}" "Sinkronisasi Banner & Restart Service"
+    else
+      wait "${sync_pid}" 2>/dev/null || true
+    fi
+    echo
     log "Banner SSH (${SSH_BANNER_FILE}) berhasil diperbarui dengan template default."
   else
     warn "Pemasangan template banner SSH dibatalkan."
@@ -197,13 +206,21 @@ banner_set_ssh_manual() {
     pause
     return 0
   fi
-  info "Menyimpan banner dan memperbarui konfigurasi SSH & Dropbear..."
   local final_content
   final_content="$(banner_apply_watermark_if_trial "${buffer}")"
   printf '%s' "${final_content}" > "${SSH_BANNER_FILE}"
   chmod 644 "${SSH_BANNER_FILE}" 2>/dev/null || true
-  banner_sync_ssh_config "${SSH_BANNER_FILE}"
-  ok "Banner SSH (${SSH_BANNER_FILE}) berhasil disimpan dan service telah disinkronkan."
+  (
+    banner_sync_ssh_config "${SSH_BANNER_FILE}"
+  ) &
+  local sync_pid=$!
+  if declare -F ui_spinner_wait >/dev/null 2>&1; then
+    ui_spinner_wait "${sync_pid}" "Sinkronisasi Banner & Restart Service"
+  else
+    wait "${sync_pid}" 2>/dev/null || true
+  fi
+  echo
+  log "Banner SSH (${SSH_BANNER_FILE}) berhasil disimpan dan service telah disinkronkan."
   pause
 }
 
@@ -229,15 +246,23 @@ banner_set_ssh_url() {
   tmp_file="$(mktemp /tmp/banner.XXXXXX 2>/dev/null || echo "/tmp/banner.tmp")"
   if curl -fsSL --connect-timeout 10 --max-time 20 "${url}" -o "${tmp_file}" 2>/dev/null || wget -q -T 10 -O "${tmp_file}" "${url}" 2>/dev/null; then
     if [[ -s "${tmp_file}" ]]; then
-      info "Menyimpan banner dan memperbarui konfigurasi SSH & Dropbear..."
       local raw_content final_content
       raw_content="$(cat "${tmp_file}")"
       final_content="$(banner_apply_watermark_if_trial "${raw_content}")"
       printf '%s\n' "${final_content}" > "${SSH_BANNER_FILE}"
       rm -f "${tmp_file}" 2>/dev/null || true
       chmod 644 "${SSH_BANNER_FILE}" 2>/dev/null || true
-      banner_sync_ssh_config "${SSH_BANNER_FILE}"
-      ok "Banner SSH berhasil diunduh dan disimpan ke ${SSH_BANNER_FILE}."
+      (
+        banner_sync_ssh_config "${SSH_BANNER_FILE}"
+      ) &
+      local sync_pid=$!
+      if declare -F ui_spinner_wait >/dev/null 2>&1; then
+        ui_spinner_wait "${sync_pid}" "Sinkronisasi Banner & Restart Service"
+      else
+        wait "${sync_pid}" 2>/dev/null || true
+      fi
+      echo
+      log "Banner SSH berhasil diunduh dan disimpan ke ${SSH_BANNER_FILE}."
     else
       rm -f "${tmp_file}" 2>/dev/null || true
       warn "File hasil unduhan kosong."
@@ -278,7 +303,7 @@ banner_set_motd_manual() {
   fi
   printf '%s' "${buffer}" > "${SSH_MOTD_FILE}"
   chmod 644 "${SSH_MOTD_FILE}" 2>/dev/null || true
-  ok "Banner Post-Login (${SSH_MOTD_FILE}) berhasil disimpan."
+  log "Banner Post-Login (${SSH_MOTD_FILE}) berhasil disimpan."
   pause
 }
 
@@ -307,6 +332,16 @@ banner_reset_all() {
     : > "${SSH_BANNER_FILE}" 2>/dev/null || true
     : > "${SSH_MOTD_FILE}" 2>/dev/null || true
     chmod 644 "${SSH_BANNER_FILE}" "${SSH_MOTD_FILE}" 2>/dev/null || true
+    (
+      banner_sync_ssh_config "${SSH_BANNER_FILE}"
+    ) &
+    local sync_pid=$!
+    if declare -F ui_spinner_wait >/dev/null 2>&1; then
+      ui_spinner_wait "${sync_pid}" "Sinkronisasi Reset Banner"
+    else
+      wait "${sync_pid}" 2>/dev/null || true
+    fi
+    echo
     log "Banner SSH dan MOTD berhasil dikosongkan."
   else
     warn "Reset banner dibatalkan."
@@ -317,12 +352,12 @@ banner_reset_all() {
 tools_banner_menu() {
   local -a items=(
     "1|Lihat Banner Saat Ini"
-    "2|Set Banner SSH (/etc/issue.net) - Input Manual"
-    "3|Set Banner SSH (/etc/issue.net) - Template Standar VPN (HTML)"
-    "4|Set Banner SSH (/etc/issue.net) - Unduh dari URL"
-    "5|Set Banner Post-Login (/etc/motd) - Input Manual"
-    "6|Set Banner Post-Login (/etc/motd) - Template Standar"
-    "7|Reset / Kosongkan Banner"
+    "5|Set Banner Post-Login - Input Manual"
+    "2|Set Banner SSH - Input Manual"
+    "6|Set Banner Post-Login - Template"
+    "3|Set Banner SSH - Template (HTML)"
+    "7|Reset / Kosongkan Semua Banner"
+    "4|Set Banner SSH - Unduh dari URL"
     "0|Back"
   )
   while true; do
