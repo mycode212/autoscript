@@ -2319,25 +2319,92 @@ main_info_cache_refresh() {
   MAIN_INFO_CACHE_TS="${now}"
 }
 
+main_info_version_compare() {
+  local v1="${1#v}"
+  local v2="${2#v}"
+  if [[ "${v1}" == "${v2}" ]]; then
+    return 1
+  fi
+  local IFS=.
+  local i ver1=(${v1}) ver2=(${v2})
+  for ((i=${#ver1[@]}; i<${#ver2[@]}; i++)); do
+    ver1[i]=0
+  done
+  for ((i=${#ver2[@]}; i<${#ver1[@]}; i++)); do
+    ver2[i]=0
+  done
+  for ((i=0; i<${#ver1[@]}; i++)); do
+    if ((10#${ver1[i]} < 10#${ver2[i]})); then
+      return 0
+    elif ((10#${ver1[i]} > 10#${ver2[i]})); then
+      return 2
+    fi
+  done
+  return 1
+}
+
+main_info_remote_version_get() {
+  local cache_file="/tmp/.autoscript_remote_version"
+  local now remote_ver=""
+  now="$(date +%s 2>/dev/null || echo 0)"
+
+  if [[ -f "${cache_file}" ]]; then
+    local cache_ts
+    cache_ts="$(stat -c %Y "${cache_file}" 2>/dev/null || echo 0)"
+    if (( now - cache_ts < 3600 )); then
+      remote_ver="$(head -n1 "${cache_file}" 2>/dev/null | tr -d ' \r\n' || true)"
+      if [[ -n "${remote_ver}" && "${remote_ver}" =~ ^[0-9]+(\.[0-9]+)* ]]; then
+        printf '%s\n' "${remote_ver}"
+        return 0
+      fi
+    fi
+  fi
+
+  if command -v curl >/dev/null 2>&1; then
+    remote_ver="$(curl -fsSL --connect-timeout 2 --max-time 3 "https://raw.githubusercontent.com/mycode212/autoscript/main/version" 2>/dev/null | head -n1 | tr -d ' \r\n' || true)"
+  fi
+  if [[ -z "${remote_ver}" || ! "${remote_ver}" =~ ^[0-9]+(\.[0-9]+)* ]]; then
+    if [[ -f "${cache_file}" ]]; then
+      remote_ver="$(head -n1 "${cache_file}" 2>/dev/null | tr -d ' \r\n' || true)"
+    fi
+  fi
+
+  if [[ -n "${remote_ver}" && "${remote_ver}" =~ ^[0-9]+(\.[0-9]+)* ]]; then
+    printf '%s\n' "${remote_ver}" > "${cache_file}" 2>/dev/null || true
+    printf '%s\n' "${remote_ver}"
+  else
+    printf '%s\n' ""
+  fi
+}
+
 main_info_script_version_get() {
-  local ver=""
+  local cur_ver="" rem_ver=""
   if [[ -f "/etc/autoscript/version" ]]; then
-    ver="$(head -n1 "/etc/autoscript/version" 2>/dev/null | tr -d ' \r\n' || true)"
+    cur_ver="$(head -n1 "/etc/autoscript/version" 2>/dev/null | tr -d ' \r\n' || true)"
   fi
-  if [[ -z "${ver}" && -f "/opt/autoscript/version" ]]; then
-    ver="$(head -n1 "/opt/autoscript/version" 2>/dev/null | tr -d ' \r\n' || true)"
+  if [[ -z "${cur_ver}" && -f "/opt/autoscript/version" ]]; then
+    cur_ver="$(head -n1 "/opt/autoscript/version" 2>/dev/null | tr -d ' \r\n' || true)"
   fi
-  if [[ -z "${ver}" ]]; then
-    ver="1.0.0"
+  [[ -n "${cur_ver}" ]] || cur_ver="1.5.0"
+
+  rem_ver="$(main_info_remote_version_get)"
+  local has_update=0
+  if [[ -n "${rem_ver}" ]]; then
+    main_info_version_compare "${cur_ver}" "${rem_ver}"
+    if [[ $? -eq 0 ]]; then
+      has_update=1
+    fi
   fi
-  printf 'v%s\n' "${ver#v}"
+
+  printf '%s|%s|%d\n' "${cur_ver#v}" "${rem_ver#v}" "${has_update}"
 }
 
 main_menu_info_header_print() {
-  local os ram up ip isp country domain cpu_usage disk_usage server_time script_ver
+  local os ram up ip isp country domain cpu_usage disk_usage server_time
   local vless_count vmess_count trojan_count ssh_count total_users online_sessions
   local bw_today bw_yesterday bw_month bw_total bw_raw
   local xray_badge nginx_badge dropbear_badge sshws_badge edge_badge warp_badge stunnel_badge badvpn_badge
+  local ver_data cur_ver rem_ver has_update ver_display ver_color
 
   main_info_cache_refresh
 
@@ -2351,7 +2418,16 @@ main_menu_info_header_print() {
   cpu_usage="$(main_info_cpu_get)"
   disk_usage="$(main_info_disk_get)"
   server_time="$(main_info_server_time_get)"
-  script_ver="$(main_info_script_version_get)"
+
+  ver_data="$(main_info_script_version_get)"
+  IFS='|' read -r cur_ver rem_ver has_update <<< "${ver_data}"
+  if [[ "${has_update}" == "1" ]]; then
+    ver_display="v${cur_ver} -> v${rem_ver} (Update Tersedia!)"
+    ver_color="${UI_WARN}"
+  else
+    ver_display="v${cur_ver} (Latest)"
+    ver_color="${UI_WHITE}"
+  fi
 
   bw_raw="$(main_info_bandwidth_stats_get)"
   IFS='|' read -r bw_today bw_yesterday bw_month bw_total <<< "${bw_raw}"
@@ -2372,6 +2448,13 @@ main_menu_info_header_print() {
   stunnel_badge="$(svc_is_active "${SSHWS_STUNNEL_SERVICE}" && printf "${UI_SUCCESS}🟢 ONLINE${UI_RESET}" || printf "${UI_ERR}🔴 OFFLINE${UI_RESET}")"
   badvpn_badge="$(svc_is_active "badvpn-udpgw" && printf "${UI_SUCCESS}🟢 ONLINE${UI_RESET}" || printf "${UI_ERR}🔴 OFFLINE${UI_RESET}")"
 
+  if [[ "${has_update}" == "1" ]]; then
+    echo -e "${UI_WARN}╭─────────────────[ 🔔 PEMBARUAN TERSEDIA ]──────────────────╮${UI_RESET}"
+    printf "${UI_WARN}│${UI_RESET}  ${UI_WHITE}%-56s${UI_RESET}${UI_WARN}│${UI_RESET}\n" "Versi baru v${rem_ver} telah rilis! (Saat ini: v${cur_ver})"
+    printf "${UI_WARN}│${UI_RESET}  ${UI_ACCENT}%-56s${UI_RESET}${UI_WARN}│${UI_RESET}\n" "Ketik perintah 'update' untuk memperbarui script."
+    echo -e "${UI_WARN}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
+  fi
+
   echo -e "${UI_BORDER}╭──────────────────────[ SYSTEM INFO ]───────────────────────╮${UI_RESET}"
   printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "IP VPS" "${ip:0:42}"
   printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "DOMAIN" "${domain:0:42}"
@@ -2381,7 +2464,7 @@ main_menu_info_header_print() {
   printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "CPU USAGE" "${cpu_usage:0:42}"
   printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "RAM USAGE" "${ram:0:42}"
   printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "DISK USAGE" "${disk_usage:0:42}"
-  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "SCRIPT VER" "${script_ver:0:42}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${ver_color}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "SCRIPT VER" "${ver_display:0:42}"
   printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "SERVER TIME" "${server_time:0:42}"
   echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
 
