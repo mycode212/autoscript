@@ -1846,7 +1846,7 @@ def vless_link(net, val):
     if val:
       q["serviceName"]=val
   host = tcp_tls_host if net == "tcp" else domain
-  return f"vless://{cred}@{host}:443?{urllib.parse.urlencode(q)}#{urllib.parse.quote(username + "@" + proto)}"
+  return f"vless://{cred}@{host}:443?{urllib.parse.urlencode(q)}#{urllib.parse.quote(username + '@' + proto)}"
 
 def trojan_link(net, val):
   q={"security":"tls","type":net,"sni":domain}
@@ -1856,7 +1856,7 @@ def trojan_link(net, val):
     if val:
       q["serviceName"]=val
   host = tcp_tls_host if net == "tcp" else domain
-  return f"trojan://{cred}@{host}:443?{urllib.parse.urlencode(q)}#{urllib.parse.quote(username + "@" + proto)}"
+  return f"trojan://{cred}@{host}:443?{urllib.parse.urlencode(q)}#{urllib.parse.quote(username + '@' + proto)}"
 
 def vmess_link(net, val):
   obj={
