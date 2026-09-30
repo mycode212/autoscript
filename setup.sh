@@ -162,7 +162,9 @@ setup_run_step() {
   local label="$1"
   shift || true
   setup_set_progress "${label}"
+  echo -e "${CYAN}[run]${NC} ${label}..."
   "$@"
+  echo -e "${GREEN}[OK]${NC} ${label}"
 }
 
 setup_post_domain_main() {
@@ -241,6 +243,25 @@ setup_run_post_domain_with_spinner() {
   ui_section_title "Proses setup berjalan di latar belakang."
   ui_subtle "Tunggu sampai spinner selesai. Jika gagal, potongan log terakhir akan ditampilkan."
   echo
+
+  if [[ ! -t 1 || "${AUTO_INSTALL:-0}" == "1" ]]; then
+    (
+      SETUP_PROGRESS_FILE="${setup_status_file}"
+      setup_post_domain_main
+    ) 2>&1 | tee "${setup_log_file}"
+    rc=${PIPESTATUS[0]}
+    if (( rc == 0 )); then
+      if [[ "${ACME_CERT_MODE:-}" == "dns_cf_wildcard" ]]; then
+        setup_cf_dns_rollback_mark_committed
+      fi
+      rm -f "${setup_status_file}" >/dev/null 2>&1 || true
+      ok "Setup selesai."
+      ui_subtle "Log setup tersimpan di ${setup_log_file}"
+      return 0
+    fi
+    rm -f "${setup_status_file}" >/dev/null 2>&1 || true
+    die "Setup berhenti. Periksa log lengkap: ${setup_log_file} (exit ${rc})"
+  fi
 
   (
     SETUP_PROGRESS_FILE="${setup_status_file}"

@@ -8,6 +8,10 @@ manage_router_dispatch() {
     "")
       return 0
       ;;
+    api)
+      source_manage_module "features/api.sh" 2>/dev/null || true
+      api_dispatch "$@"
+      ;;
     user|users|xray-users)
       run_action "Xray Users" user_menu "$@"
       ;;
