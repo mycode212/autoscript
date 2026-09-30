@@ -63,6 +63,7 @@ api_user_create() {
   local ip_limit="${5:-2}"
   local speed_mbps="${6:-0}"
   local quota_gb="${7:-0}"
+  local custom_token="${8:-}"
 
   if [[ -z "${username}" || -z "${password}" || -z "${expired_at}" ]]; then
     api_response_json false "Parameter tidak lengkap: butuh proto, username, password, expired_at (YYYY-MM-DD)"
@@ -115,7 +116,11 @@ api_user_create() {
     mkdir -p "${quota_dir}" "${info_dir}" "${info_compat_dir}" "/var/lib/autoscript/ssh/users" "/etc/autoscript/ssh-users"
 
     local token
-    token="$(head -c 16 /dev/urandom 2>/dev/null | xxd -p 2>/dev/null || date +%s%N | md5sum | head -c 16)"
+    if [[ -n "${custom_token}" && "${custom_token}" != "auto" ]]; then
+      token="${custom_token}"
+    else
+      token="$(head -c 5 /dev/urandom 2>/dev/null | xxd -p 2>/dev/null || date +%s%N | md5sum | head -c 10)"
+    fi
 
     local primary_file="${quota_dir}/${username}@ssh.json"
     local compat_file="${quota_dir}/${username}.json"
@@ -171,6 +176,7 @@ Username        : ${username}
 Password        : ${password}
 Created         : ${created_date}
 Expired         : ${expired_at}
+SSH WS Path     : /${token}
 Multi-Login IP  : ${ip_limit} Device
 Speed Limit     : ${speed_mbps} Mbps
 ============================================================
@@ -179,7 +185,7 @@ EOF
     cp -f "${info_file}" "${info_txt}" 2>/dev/null || true
     cp -f "${info_file}" "${info_compat_file}" 2>/dev/null || true
 
-    api_response_json true "User SSH '${username}' berhasil dibuat." "{\"username\":\"${username}\",\"protocol\":\"ssh\",\"expired_at\":\"${expired_at}\",\"ip_limit\":${ip_limit},\"speed_mbps\":${speed_mbps}}"
+    api_response_json true "User SSH '${username}' berhasil dibuat." "{\"username\":\"${username}\",\"protocol\":\"ssh\",\"sshws_token\":\"${token}\",\"ws_path\":\"/${token}\",\"expired_at\":\"${expired_at}\",\"ip_limit\":${ip_limit},\"speed_mbps\":${speed_mbps}}"
     return 0
   fi
 
