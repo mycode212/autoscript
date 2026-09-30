@@ -67,15 +67,15 @@ banner_apply_watermark_if_trial() {
     return 0
   fi
 
-  if [[ "${content}" =~ "ArjunaCloud" || "${content}" =~ "AutoScript By ArjunaCloud" ]]; then
+  if [[ "${content}" =~ "ArjunCloud" || "${content}" =~ "ArjunaCloud" || "${content}" =~ "AutoScript By ArjunCloud" ]]; then
     printf '%s\n' "${content}"
     return 0
   fi
 
   if [[ "${content}" =~ "<font" || "${content}" =~ "<br>" || "${content}" =~ "<b>" ]]; then
-    printf '%s<br><font color="#00ff00"><b>================================================</b></font><br><font color="#ffff00"><b>           AutoScript By ArjunaCloud            </b></font><br><font color="#00ff00"><b>================================================</b></font>\n' "${content}"
+    printf '%s<br><font color="#00ff00"><b>================================================</b></font><br><font color="#ffff00"><b>           AutoScript By ArjunCloud             </b></font><br><font color="#00ff00"><b>================================================</b></font>\n' "${content}"
   else
-    printf '%s\n\n================================================\n           AutoScript By ArjunaCloud\n================================================\n' "${content}"
+    printf '%s\n\n================================================\n           AutoScript By ArjunCloud\n================================================\n' "${content}"
   fi
 }
 
@@ -99,7 +99,7 @@ EOF
   if [[ "${is_trial}" == "1" ]]; then
     cat <<EOF
 <font color="#00ff00"><b>================================================</b></font><br>
-<font color="#ffff00"><b>           AutoScript By ArjunaCloud            </b></font><br>
+<font color="#ffff00"><b>           AutoScript By ArjunCloud             </b></font><br>
 <font color="#00ff00"><b>================================================</b></font><br>
 EOF
   else
@@ -119,7 +119,7 @@ banner_template_motd_text() {
   Gunakan perintah 'manage' untuk membuka Control Panel VPS.
   Jaga kerahasiaan kredensial dan patuhi aturan server.
 ============================================================
-  Script Ini Dilindungi dan di Kembangkan oleh ArjunaCloud
+              Copyright 2026 ArjunCloud & Teams
 ============================================================
 EOF
 }

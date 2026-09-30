@@ -9046,11 +9046,11 @@ def op_banner_set_ssh(content: str) -> tuple[bool, str, str]:
         except Exception:
             pass
 
-    if is_trial and "ArjunaCloud" not in banner_text:
+    if is_trial and ("ArjunCloud" not in banner_text and "ArjunaCloud" not in banner_text):
         if "<font" in banner_text or "<br>" in banner_text or "<b>" in banner_text:
-            banner_text += '<br><font color="#00ff00"><b>================================================</b></font><br><font color="#ffff00"><b>           AutoScript By ArjunaCloud            </b></font><br><font color="#00ff00"><b>================================================</b></font>'
+            banner_text += '<br><font color="#00ff00"><b>================================================</b></font><br><font color="#ffff00"><b>           AutoScript By ArjunCloud             </b></font><br><font color="#00ff00"><b>================================================</b></font>'
         else:
-            banner_text += '\n\n================================================\n           AutoScript By ArjunaCloud\n================================================'
+            banner_text += '\n\n================================================\n           AutoScript By ArjunCloud\n================================================'
 
     ssh_banner_path = Path("/etc/issue.net")
     try:

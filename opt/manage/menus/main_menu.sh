@@ -81,7 +81,7 @@ main_menu_license_footer_print() {
   local status_str="${license_status} (${license_days})"
   printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-10s${UI_RESET} : ${UI_SUCCESS}%-46s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "Status" "${status_str:0:46}"
   echo -e "${UI_BORDER}├────────────────────────────────────────────────────────────┤${UI_RESET}"
-  echo -e "${UI_BORDER}│${UI_RESET}  ${UI_MUTED}Script Ini Dilindungi dan di Kembangkan oleh ArjunaCloud${UI_RESET}  ${UI_BORDER}│${UI_RESET}"
+  printf "${UI_BORDER}│${UI_RESET}         ${UI_MUTED}%-49s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "Copyright 2026 ArjunCloud & Teams"
   echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
 }
 
