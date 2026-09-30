@@ -6,6 +6,15 @@ SAFE_PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 PATH="${SAFE_PATH}"
 export PATH
 
+if [[ -t 1 && $# -eq 0 ]]; then
+  MANAGE_SPLASH_STARTED=1
+  clear 2>/dev/null || true
+  printf '\033[1;36m╭────────────────────────────────────────────────────────────╮\033[0m\n'
+  printf '\033[1;36m│\033[0m  \033[1m\033[1;37mMembuka Panel\033[0m                                             \033[1;36m│\033[0m\n'
+  printf '\033[1;36m╰────────────────────────────────────────────────────────────╯\033[0m\n\n'
+  printf "  \033[1;36m->\033[0m \033[1;37m%-28s\033[0m " "Memuat Modules ...."
+fi
+
 manage_bootstrap_path_trusted() {
   local target="${1:-}" current owner mode
   [[ -n "${target}" && -e "${target}" ]] || return 1
@@ -4317,5 +4326,9 @@ for _mod in "${MANAGE_REQUIRED_MODULES[@]}"; do
   manage_source_required "${_mod}"
 done
 unset _mod
+
+if [[ "${MANAGE_SPLASH_STARTED:-0}" == "1" ]]; then
+  printf '[\033[1;32m OK \033[0m]\n'
+fi
 
 main "$@"

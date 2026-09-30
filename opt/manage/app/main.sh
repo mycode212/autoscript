@@ -1,40 +1,46 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 
-manage_splash_loader() {
-  [[ -t 1 ]] || return 0
-
-  clear 2>/dev/null || true
-  echo -e "${UI_BORDER}╭────────────────────────────────────────────────────────────╮${UI_RESET}"
-  echo -e "${UI_BORDER}│${UI_RESET}  ${UI_BOLD}${UI_WHITE}Membuka Panel${UI_RESET}                                             ${UI_BORDER}│${UI_RESET}"
-  echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
-  echo ""
-
-  printf "  ${UI_ACCENT}->${UI_RESET} ${UI_WHITE}%-28s${UI_RESET} " "Memuat Modules ...."
-  sleep 0.25
-  echo -e "[ ${UI_SUCCESS}OK${UI_RESET} ]"
-
-  printf "  ${UI_ACCENT}->${UI_RESET} ${UI_WHITE}%-28s${UI_RESET} " "Memuat Service ...."
-  sleep 0.25
-  echo -e "[ ${UI_SUCCESS}OK${UI_RESET} ]"
-
-  printf "  ${UI_ACCENT}->${UI_RESET} ${UI_WHITE}%-28s${UI_RESET} " "Memuat Database ...."
-  sleep 0.25
-  echo -e "[ ${UI_SUCCESS}OK${UI_RESET} ]"
-
-  echo ""
-  echo -e "  ${UI_SUCCESS}✓${UI_RESET} ${UI_BOLD}${UI_SUCCESS}System Siap${UI_RESET}"
-  sleep 0.45
-}
-
 main() {
   need_root
   local action="${1:-}"
+
+  local is_interactive_splash=0
+  if [[ -t 1 && -z "${action}" ]]; then
+    is_interactive_splash=1
+    if [[ "${MANAGE_SPLASH_STARTED:-0}" != "1" ]]; then
+      clear 2>/dev/null || true
+      printf '\033[1;36m╭────────────────────────────────────────────────────────────╮\033[0m\n'
+      printf '\033[1;36m│\033[0m  \033[1m\033[1;37mMembuka Panel\033[0m                                             \033[1;36m│\033[0m\n'
+      printf '\033[1;36m╰────────────────────────────────────────────────────────────╯\033[0m\n\n'
+      printf "  \033[1;36m->\033[0m \033[1;37m%-28s\033[0m [\033[1;32m OK \033[0m]\n" "Memuat Modules ...."
+    fi
+    printf "  \033[1;36m->\033[0m \033[1;37m%-28s\033[0m " "Memuat Service ...."
+  fi
+
   if ! manage_license_guard_preflight "${action}"; then
+    if [[ "${is_interactive_splash}" == "1" ]]; then
+      printf '[\033[1;31m FAIL \033[0m]\n'
+    fi
     return 1
   fi
+
+  if [[ "${is_interactive_splash}" == "1" ]]; then
+    printf '[\033[1;32m OK \033[0m]\n'
+    printf "  \033[1;36m->\033[0m \033[1;37m%-28s\033[0m " "Memuat Database ...."
+  fi
+
   init_runtime_dirs
   ensure_account_quota_dirs
+  if declare -F main_info_cache_refresh >/dev/null 2>&1; then
+    main_info_cache_refresh 2>/dev/null || true
+  fi
+
+  if [[ "${is_interactive_splash}" == "1" ]]; then
+    printf '[\033[1;32m OK \033[0m]\n\n'
+    printf '  \033[1;32m✓\033[0m \033[1m\033[1;32mSystem Siap\033[0m\n'
+    sleep 0.3
+  fi
 
   case "${action}" in
     __apply-ssh-network)
@@ -76,6 +82,5 @@ main() {
     return $?
   fi
 
-  manage_splash_loader
   main_menu
 }
