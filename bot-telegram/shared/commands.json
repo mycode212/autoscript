@@ -393,6 +393,13 @@
           "dangerous": true
         },
         {
+          "id": "trial_user",
+          "label": "Trial User (1 Hari)",
+          "mode": "direct",
+          "confirm": true,
+          "style": "primary"
+        },
+        {
           "id": "delete_user",
           "label": "Delete User",
           "mode": "modal",
@@ -514,6 +521,55 @@
               }
             ]
           }
+        },
+        {
+          "id": "view_banner",
+          "label": "Lihat Banner",
+          "mode": "direct",
+          "style": "primary"
+        },
+        {
+          "id": "set_ssh_banner",
+          "label": "Set Banner SSH",
+          "mode": "modal",
+          "style": "secondary",
+          "modal": {
+            "title": "Set Banner SSH (/etc/issue.net)",
+            "fields": [
+              {
+                "id": "content",
+                "label": "Teks / HTML Banner",
+                "style": "paragraph",
+                "required": true,
+                "placeholder": "Masukkan teks / HTML banner SSH"
+              }
+            ]
+          }
+        },
+        {
+          "id": "set_motd_banner",
+          "label": "Set MOTD Login",
+          "mode": "modal",
+          "style": "secondary",
+          "modal": {
+            "title": "Set Banner Post-Login (/etc/motd)",
+            "fields": [
+              {
+                "id": "content",
+                "label": "Teks MOTD Login",
+                "style": "paragraph",
+                "required": true,
+                "placeholder": "Masukkan teks MOTD post-login"
+              }
+            ]
+          }
+        },
+        {
+          "id": "reset_banner",
+          "label": "Reset Banner",
+          "mode": "direct",
+          "style": "danger",
+          "confirm": true
         }
       ],
       "hidden": true,

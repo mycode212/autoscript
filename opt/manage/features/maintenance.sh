@@ -7,6 +7,8 @@ for _rel in \
   "features/maintenance/diagnostics.sh" \
   "features/maintenance/security.sh" \
   "features/maintenance/tools.sh" \
+  "features/maintenance/banner.sh" \
+  "features/maintenance/updater.sh" \
   "features/maintenance/runtime_services.sh"; do
   manage_source_relative "${_rel}"
 done

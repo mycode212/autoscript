@@ -30,6 +30,7 @@ ACTION_TIMEOUTS_SECONDS: dict[str, float] = {
     "22:delete_user": 90.0,
     "22:reset_credential": 90.0,
     "23:add_user": 90.0,
+    "23:trial_user": 90.0,
     "23:delete_user": 90.0,
     "23:reset_password": 90.0,
     "24:reset_quota_used": 90.0,

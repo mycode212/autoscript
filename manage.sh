@@ -200,22 +200,32 @@ ACCOUNT_INFO_DOMAIN_SYNC_LAST_CHECK_TS=0
 declare -Ag QUOTA_FIELDS_CACHE=()
 
 # -------------------------
-# UI styling (subtle)
+# UI styling (vibrant modern accents)
 # -------------------------
 if [[ -t 1 ]]; then
   UI_RESET='\033[0m'
   UI_BOLD='\033[1m'
-  UI_ACCENT='\033[0;36m'
-  UI_MUTED='\033[0;37m'
+  UI_ACCENT='\033[1;36m'
+  UI_PRIMARY='\033[1;34m'
+  UI_SUCCESS='\033[1;32m'
   UI_WARN='\033[1;33m'
-  UI_ERR='\033[0;31m'
+  UI_ERR='\033[1;31m'
+  UI_MAGENTA='\033[1;35m'
+  UI_WHITE='\033[1;37m'
+  UI_MUTED='\033[0;90m'
+  UI_BORDER='\033[1;36m'
 else
   UI_RESET=''
   UI_BOLD=''
   UI_ACCENT=''
-  UI_MUTED=''
+  UI_PRIMARY=''
+  UI_SUCCESS=''
   UI_WARN=''
-UI_ERR=''
+  UI_ERR=''
+  UI_MAGENTA=''
+  UI_WHITE=''
+  UI_MUTED=''
+  UI_BORDER=''
 fi
 
 MAIN_INFO_REMOTE_LOOKUPS="${MAIN_INFO_REMOTE_LOOKUPS:-1}"
@@ -1848,6 +1858,103 @@ main_info_os_get() {
   echo "${pretty}"
 }
 
+main_info_cpu_get() {
+  local cpu_usage=""
+  if have_cmd top; then
+    cpu_usage="$(top -bn1 2>/dev/null | awk -F',' '/Cpu\(s\)/ {for(i=1;i<=NF;i++) if($i~/id/) print 100-$i}' 2>/dev/null | awk '{printf "%.0f%%", $1}' 2>/dev/null || true)"
+  fi
+  if [[ -z "${cpu_usage}" && -r /proc/stat ]]; then
+    cpu_usage="$(awk '/^cpu / {u=$2+$4; t=$2+$4+$5; if(t>0) printf "%.0f%%", (u/t)*100}' /proc/stat 2>/dev/null || true)"
+  fi
+  [[ -n "${cpu_usage}" ]] || cpu_usage="0%"
+  echo "${cpu_usage}"
+}
+
+main_info_ram_detailed_get() {
+  local total_kb avail_kb used_kb
+  total_kb="$(awk '/^MemTotal:[[:space:]]+[0-9]+/{print $2; exit}' /proc/meminfo 2>/dev/null || true)"
+  avail_kb="$(awk '/^MemAvailable:[[:space:]]+[0-9]+/{print $2; exit}' /proc/meminfo 2>/dev/null || true)"
+  if [[ -n "${total_kb}" && "${total_kb}" =~ ^[0-9]+$ ]]; then
+    [[ -n "${avail_kb}" && "${avail_kb}" =~ ^[0-9]+$ ]] || avail_kb=0
+    used_kb=$(( total_kb - avail_kb ))
+    (( used_kb < 0 )) && used_kb=0
+    local used_mb=$(( used_kb / 1024 ))
+    local total_mb=$(( total_kb / 1024 ))
+    echo "${used_mb}MB / ${total_mb}MB"
+    return 0
+  fi
+  echo "-"
+}
+
+main_info_disk_get() {
+  local disk=""
+  if have_cmd df; then
+    disk="$(df -h / 2>/dev/null | awk 'NR==2 {print $3 "/" $2}' || true)"
+  fi
+  [[ -n "${disk}" ]] || disk="-"
+  echo "${disk}"
+}
+
+main_info_server_time_get() {
+  date '+%d-%m-%Y %H:%M:%S' 2>/dev/null || date 2>/dev/null || echo "-"
+}
+
+main_info_bandwidth_stats_get() {
+  # Prints: today|yesterday|month|total
+  local today="-" yesterday="-" month="-" total="-"
+  if have_cmd vnstat; then
+    local vn_json
+    vn_json="$(vnstat --json 2>/dev/null || true)"
+    if [[ -n "${vn_json}" ]] && have_cmd jq; then
+      today="$(echo "${vn_json}" | jq -r '.interfaces[0].traffic.day[0].rx + .interfaces[0].traffic.day[0].tx | if . then (. / 1073741824 | tostring | .[0:4] + " GiB") else "-" end' 2>/dev/null || true)"
+      yesterday="$(echo "${vn_json}" | jq -r '.interfaces[0].traffic.day[1].rx + .interfaces[0].traffic.day[1].tx | if . then (. / 1073741824 | tostring | .[0:4] + " GiB") else "-" end' 2>/dev/null || true)"
+      month="$(echo "${vn_json}" | jq -r '.interfaces[0].traffic.month[0].rx + .interfaces[0].traffic.month[0].tx | if . then (. / 1073741824 | tostring | .[0:4] + " GiB") else "-" end' 2>/dev/null || true)"
+      total="$(echo "${vn_json}" | jq -r '.interfaces[0].traffic.total.rx + .interfaces[0].traffic.total.tx | if . then (. / 1073741824 | tostring | .[0:4] + " GiB") else "-" end' 2>/dev/null || true)"
+    fi
+  fi
+  if [[ "${total}" == "-" || -z "${total}" ]]; then
+    local rx=0 tx=0
+    if [[ -r /proc/net/dev ]]; then
+      while read -r line; do
+        if [[ "${line}" =~ ^[[:space:]]*(eth0|ens|enp|eth1|venet0) ]]; then
+          local r_bytes t_bytes
+          r_bytes="$(echo "${line}" | awk '{print $2}')"
+          t_bytes="$(echo "${line}" | awk '{print $10}')"
+          rx=$(( rx + r_bytes ))
+          tx=$(( tx + t_bytes ))
+        fi
+      done < /proc/net/dev
+    fi
+    local sum_bytes=$(( rx + tx ))
+    if (( sum_bytes > 0 )); then
+      local gib
+      gib="$(awk -v b="${sum_bytes}" 'BEGIN{printf "%.2f GiB", b/1073741824}')"
+      today="${gib}"
+      yesterday="0.00 GiB"
+      month="${gib}"
+      total="${gib}"
+    fi
+  fi
+  [[ -n "${today}" && "${today}" != "null" ]] || today="0.00 GiB"
+  [[ -n "${yesterday}" && "${yesterday}" != "null" ]] || yesterday="0.00 GiB"
+  [[ -n "${month}" && "${month}" != "null" ]] || month="0.00 GiB"
+  [[ -n "${total}" && "${total}" != "null" ]] || total="0.00 GiB"
+  echo "${today}|${yesterday}|${month}|${total}"
+}
+
+main_info_active_sessions_count() {
+  local count=0
+  if [[ -d "/run/autoscript/sshws-sessions" ]]; then
+    count="$(find "/run/autoscript/sshws-sessions" -type f -name '*.json' 2>/dev/null | wc -l || echo 0)"
+  fi
+  if (( count == 0 )); then
+    if have_cmd who; then
+      count="$(who -q 2>/dev/null | awk -F'=' '/# users/{print $2}' || echo 0)"
+    fi
+  fi
+  echo "${count// /}"
+}
+
 main_info_ram_get() {
   local kb
   kb="$(awk '/^MemTotal:[[:space:]]+[0-9]+/{print $2; exit}' /proc/meminfo 2>/dev/null || true)"
@@ -2197,60 +2304,98 @@ main_info_cache_refresh() {
   MAIN_INFO_CACHE_TS="${now}"
 }
 
+main_info_script_version_get() {
+  local ver=""
+  if [[ -f "/etc/autoscript/version" ]]; then
+    ver="$(head -n1 "/etc/autoscript/version" 2>/dev/null | tr -d ' \r\n' || true)"
+  fi
+  if [[ -z "${ver}" && -f "/opt/autoscript/version" ]]; then
+    ver="$(head -n1 "/opt/autoscript/version" 2>/dev/null | tr -d ' \r\n' || true)"
+  fi
+  if [[ -z "${ver}" ]]; then
+    ver="1.0.0"
+  fi
+  printf 'v%s\n' "${ver#v}"
+}
+
 main_menu_info_header_print() {
-  local os ram up ip isp country domain tls warp license_status license_days
-  local vless_count vmess_count trojan_count ssh_count
-  local edge_icon nginx_icon xray_icon ssh_icon
-  local info_label_width=20
+  local os ram up ip isp country domain cpu_usage disk_usage server_time script_ver
+  local vless_count vmess_count trojan_count ssh_count total_users online_sessions
+  local bw_today bw_yesterday bw_month bw_total bw_raw
+  local xray_badge nginx_badge dropbear_badge sshws_badge edge_badge warp_badge stunnel_badge badvpn_badge
 
   main_info_cache_refresh
 
   os="${MAIN_INFO_CACHE_OS}"
-  ram="${MAIN_INFO_CACHE_RAM}"
+  ram="$(main_info_ram_detailed_get)"
   up="$(main_info_uptime_get)"
   ip="${MAIN_INFO_CACHE_IP}"
   isp="${MAIN_INFO_CACHE_ISP}"
   country="${MAIN_INFO_CACHE_COUNTRY}"
   domain="${MAIN_INFO_CACHE_DOMAIN}"
-  license_status="${MAIN_INFO_CACHE_LICENSE_STATUS}"
-  license_days="${MAIN_INFO_CACHE_LICENSE_DAYS}"
-  tls="$(main_info_tls_expired_get)"
-  warp="$(main_info_warp_status_get)"
+  cpu_usage="$(main_info_cpu_get)"
+  disk_usage="$(main_info_disk_get)"
+  server_time="$(main_info_server_time_get)"
+  script_ver="$(main_info_script_version_get)"
+
+  bw_raw="$(main_info_bandwidth_stats_get)"
+  IFS='|' read -r bw_today bw_yesterday bw_month bw_total <<< "${bw_raw}"
+
   vless_count="$(account_count_by_proto "vless")"
   vmess_count="$(account_count_by_proto "vmess")"
   trojan_count="$(account_count_by_proto "trojan")"
   ssh_count="$(ssh_account_count)"
-  edge_icon="$(service_status_icon "$(main_menu_edge_service_name)")"
-  nginx_icon="$(service_status_icon "nginx")"
-  xray_icon="$(service_status_icon "xray")"
-  ssh_icon="$(service_group_status_icon "${SSHWS_DROPBEAR_SERVICE}" "${SSHWS_STUNNEL_SERVICE}" "${SSHWS_PROXY_SERVICE}")"
+  total_users=$(( vless_count + vmess_count + trojan_count + ssh_count ))
+  online_sessions="$(main_info_active_sessions_count)"
 
-  printf "%-*s : %s\n" "${info_label_width}" "System OS" "${os}"
-  printf "%-*s : %s\n" "${info_label_width}" "RAM" "${ram}"
-  printf "%-*s : %s\n" "${info_label_width}" "Uptime" "${up}"
-  printf "%-*s : %s\n" "${info_label_width}" "IP VPS" "${ip}"
-  printf "%-*s : %s\n" "${info_label_width}" "ISP" "${isp}"
-  printf "%-*s : %s\n" "${info_label_width}" "Country" "${country}"
-  printf "%-*s : %s\n" "${info_label_width}" "Domain" "${domain}"
-  printf "%-*s : %s\n" "${info_label_width}" "Status Lisensi" "${license_status}"
-  printf "%-*s : %s\n" "${info_label_width}" "Masa Aktif Lisensi" "${license_days}"
-  printf "%-*s : %s\n" "${info_label_width}" "TLS Expired" "${tls}"
-  printf "%-*s : %s\n" "${info_label_width}" "WARP Status" "${warp}"
-  hr
-  main_menu_center_line "ACCOUNTS"
-  main_menu_center_segments \
-    "VLESS ${vless_count}" \
-    "VMESS ${vmess_count}" \
-    "TROJAN ${trojan_count}" \
-    "SSH ${ssh_count}"
-  echo
-  main_menu_center_line "SERVICES"
-  main_menu_center_segments \
-    "Edge Mux ${edge_icon}" \
-    "Nginx ${nginx_icon}" \
-    "Xray ${xray_icon}" \
-    "SSH ${ssh_icon}"
-  hr
+  xray_badge="$(svc_is_active "xray" && printf "${UI_SUCCESS}🟢 ONLINE${UI_RESET}" || printf "${UI_ERR}🔴 OFFLINE${UI_RESET}")"
+  nginx_badge="$(svc_is_active "nginx" && printf "${UI_SUCCESS}🟢 ONLINE${UI_RESET}" || printf "${UI_ERR}🔴 OFFLINE${UI_RESET}")"
+  dropbear_badge="$(svc_is_active "${SSHWS_DROPBEAR_SERVICE}" && printf "${UI_SUCCESS}🟢 ONLINE${UI_RESET}" || printf "${UI_ERR}🔴 OFFLINE${UI_RESET}")"
+  sshws_badge="$(svc_is_active "${SSHWS_PROXY_SERVICE}" && printf "${UI_SUCCESS}🟢 ONLINE${UI_RESET}" || printf "${UI_ERR}🔴 OFFLINE${UI_RESET}")"
+  edge_badge="$(svc_is_active "$(main_menu_edge_service_name)" && printf "${UI_SUCCESS}🟢 ONLINE${UI_RESET}" || printf "${UI_ERR}🔴 OFFLINE${UI_RESET}")"
+  warp_badge="$(svc_is_active "wireproxy" && printf "${UI_SUCCESS}🟢 ONLINE${UI_RESET}" || printf "${UI_ERR}🔴 OFFLINE${UI_RESET}")"
+  stunnel_badge="$(svc_is_active "${SSHWS_STUNNEL_SERVICE}" && printf "${UI_SUCCESS}🟢 ONLINE${UI_RESET}" || printf "${UI_ERR}🔴 OFFLINE${UI_RESET}")"
+  badvpn_badge="$(svc_is_active "badvpn-udpgw" && printf "${UI_SUCCESS}🟢 ONLINE${UI_RESET}" || printf "${UI_ERR}🔴 OFFLINE${UI_RESET}")"
+
+  echo -e "${UI_BORDER}╭──────────────────────[ SYSTEM INFO ]───────────────────────╮${UI_RESET}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "IP VPS" "${ip:0:42}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "DOMAIN" "${domain:0:42}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "ISP" "${isp:0:42}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "OS" "${os:0:42}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "UPTIME" "${up:0:42}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "CPU USAGE" "${cpu_usage:0:42}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "RAM USAGE" "${ram:0:42}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "DISK USAGE" "${disk_usage:0:42}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "SCRIPT VER" "${script_ver:0:42}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-14s${UI_RESET} : ${UI_WHITE}%-42s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "SERVER TIME" "${server_time:0:42}"
+  echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
+
+  echo -e "${UI_BORDER}╭──────────────────────[ BANDWIDTH ]─────────────────────────╮${UI_RESET}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-10s${UI_RESET}: ${UI_WHITE}%-15s${UI_RESET} ${UI_ACCENT}%-11s${UI_RESET}: ${UI_WHITE}%-15s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" \
+    "TODAY" "${bw_today}" "YESTERDAY" "${bw_yesterday}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-10s${UI_RESET}: ${UI_WHITE}%-15s${UI_RESET} ${UI_ACCENT}%-11s${UI_RESET}: ${UI_WHITE}%-15s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" \
+    "MONTH" "${bw_month}" "TOTAL" "${bw_total}"
+  echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
+
+  echo -e "${UI_BORDER}╭──────────────────────[ USER STATS ]────────────────────────╮${UI_RESET}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-6s${UI_RESET}: ${UI_WHITE}%-9s${UI_RESET} ${UI_ACCENT}%-6s${UI_RESET}: ${UI_WHITE}%-9s${UI_RESET} ${UI_ACCENT}%-7s${UI_RESET}: ${UI_WHITE}%-9s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" \
+    "VMESS" "${vmess_count}" "VLESS" "${vless_count}" "TROJAN" "${trojan_count}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-6s${UI_RESET}: ${UI_WHITE}%-9s${UI_RESET} ${UI_ACCENT}%-6s${UI_RESET}: ${UI_WHITE}%-9s${UI_RESET} ${UI_ACCENT}%-7s${UI_RESET}: ${UI_WHITE}%-9s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" \
+    "SSWS" "0" "SSH" "${ssh_count}" "TOTAL" "${total_users}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-17s${UI_RESET}: ${UI_WHITE}%-39s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" \
+    "ONLINE SESSIONS" "${online_sessions}"
+  echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
+
+  echo -e "${UI_BORDER}╭───────────────────────[ SERVICE ]──────────────────────────╮${UI_RESET}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-11s${UI_RESET}: %b   ${UI_ACCENT}%-10s${UI_RESET}: %b  ${UI_BORDER}│${UI_RESET}\n" \
+    "XRAY" "${xray_badge}" "NGINX" "${nginx_badge}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-11s${UI_RESET}: %b   ${UI_ACCENT}%-10s${UI_RESET}: %b  ${UI_BORDER}│${UI_RESET}\n" \
+    "DROPBEAR" "${dropbear_badge}" "SSH WS" "${sshws_badge}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-11s${UI_RESET}: %b   ${UI_ACCENT}%-10s${UI_RESET}: %b  ${UI_BORDER}│${UI_RESET}\n" \
+    "EDGE MUX" "${edge_badge}" "WARP" "${warp_badge}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-11s${UI_RESET}: %b   ${UI_ACCENT}%-10s${UI_RESET}: %b  ${UI_BORDER}│${UI_RESET}\n" \
+    "STUNNEL" "${stunnel_badge}" "BADVPN" "${badvpn_badge}"
+  echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
 }
 
 download_file_or_die() {
@@ -2431,17 +2576,14 @@ menu_run_isolated() {
 }
 
 hr() {
-  local w="${COLUMNS:-80}"
+  local w="${COLUMNS:-62}"
+  if [[ ! "${w}" =~ ^[0-9]+$ || "${w}" -lt 62 ]]; then
+    w=62
+  fi
   local line
-  if [[ ! "${w}" =~ ^[0-9]+$ ]]; then
-    w=80
-  fi
-  if (( w < 60 )); then
-    w=60
-  fi
   printf -v line '%*s' "${w}" ''
-  line="${line// /-}"
-  echo -e "${UI_MUTED}${line}${UI_RESET}"
+  line="${line// /─}"
+  echo -e "${UI_BORDER}${line}${UI_RESET}"
 }
 
 ui_menu_terminal_width() {
@@ -2452,7 +2594,7 @@ ui_menu_terminal_width() {
     fi
   fi
   if [[ ! "${width}" =~ ^[0-9]+$ ]] || (( width < 40 )); then
-    width=80
+    width=62
   fi
   printf '%s\n' "${width}"
 }
@@ -2462,8 +2604,8 @@ main_menu_center_line() {
   local w
   local pad
   w="$(ui_menu_terminal_width)"
-  if (( w < 60 )); then
-    w=60
+  if (( w < 62 )); then
+    w=62
   fi
   if (( ${#text} >= w )); then
     echo "${text}"
@@ -2491,76 +2633,53 @@ ui_menu_screen_begin() {
   local title_text="$1"
   local subtitle="${2:-}"
   title
-  main_menu_center_line "${title_text}"
+  echo -e "${UI_BORDER}╭──────────────────────[ PANEL MENU ]────────────────────────╮${UI_RESET}"
+  local pad=$(( (60 - ${#title_text}) / 2 ))
+  if (( pad < 1 )); then pad=1; fi
+  local rpad=$(( 60 - pad - ${#title_text} ))
+  if (( rpad < 0 )); then rpad=0; fi
+  printf "${UI_BORDER}│${UI_BOLD}${UI_ACCENT}%*s%s%*s${UI_BORDER}│${UI_RESET}\n" "${pad}" "" "${title_text}" "${rpad}" ""
   if [[ -n "${subtitle}" ]]; then
-    echo -e "${UI_MUTED}${subtitle}${UI_RESET}"
+    local sub_pad=$(( (60 - ${#subtitle}) / 2 ))
+    if (( sub_pad < 1 )); then sub_pad=1; fi
+    local rsub_pad=$(( 60 - sub_pad - ${#subtitle} ))
+    if (( rsub_pad < 0 )); then rsub_pad=0; fi
+    printf "${UI_BORDER}│${UI_MUTED}%*s%s%*s${UI_BORDER}│${UI_RESET}\n" "${sub_pad}" "" "${subtitle}" "${rsub_pad}" ""
   fi
-  hr
+  echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
 }
 
 ui_menu_render_single_column() {
   local ref_name="$1"
   local -n menu_items="${ref_name}"
-  local item key label
+  local item key label num_str key_color
   for item in "${menu_items[@]}"; do
     IFS='|' read -r key label <<<"${item}"
-    printf "  %b%s)%b %s\n" "${UI_ACCENT}" "${key}" "${UI_RESET}" "${label}"
+    if [[ "${key}" =~ ^[0-9]$ ]]; then
+      num_str="0${key}"
+    else
+      num_str="${key}"
+    fi
+    if [[ "${key}" == "0" || "${key}" == "k" || "${key}" == "b" || "${key,,}" == "back" || "${key,,}" == "keluar" ]]; then
+      key_color="${UI_ERR}"
+      printf "  ${UI_BORDER}[${key_color}%2s${UI_BORDER}]${UI_RESET} ${key_color}• %s${UI_RESET}\n" "${num_str}" "${label}"
+    else
+      key_color="${UI_WARN}"
+      printf "  ${UI_BORDER}[${key_color}%2s${UI_BORDER}]${UI_RESET} ${UI_WHITE}• %s${UI_RESET}\n" "${num_str}" "${label}"
+    fi
   done
 }
 
 ui_menu_render_two_columns() {
-  local ref_name="$1"
-  local -n menu_items="${ref_name}"
-  local width split total left_count right_count
-  local left_num_width=0 right_num_width=0 left_label_width=0 right_label_width=0
-  local i left_key left_label right_key right_label
-  width="$(ui_menu_terminal_width)"
-  total="${#menu_items[@]}"
-  split=$(( (total + 1) / 2 ))
-  left_count="${split}"
-  right_count=$(( total - split ))
-
-  for (( i=0; i<left_count; i++ )); do
-    IFS='|' read -r left_key left_label <<<"${menu_items[$i]}"
-    (( ${#left_key} > left_num_width )) && left_num_width=${#left_key}
-    (( ${#left_label} > left_label_width )) && left_label_width=${#left_label}
-  done
-  for (( i=0; i<right_count; i++ )); do
-    IFS='|' read -r right_key right_label <<<"${menu_items[$((split + i))]}"
-    (( ${#right_key} > right_num_width )) && right_num_width=${#right_key}
-    (( ${#right_label} > right_label_width )) && right_label_width=${#right_label}
-  done
-
-  local min_width=$(( 2 + left_num_width + 2 + left_label_width + 4 ))
-  if (( right_count > 0 )); then
-    min_width=$(( min_width + right_num_width + 2 + right_label_width ))
-  fi
-  if (( width < min_width )); then
-    ui_menu_render_single_column "${ref_name}"
-    return 0
-  fi
-
-  for (( i=0; i<left_count; i++ )); do
-    IFS='|' read -r left_key left_label <<<"${menu_items[$i]}"
-    if (( i < right_count )); then
-      IFS='|' read -r right_key right_label <<<"${menu_items[$((split + i))]}"
-      printf "  %b%*s)%b %-*s  %b%*s)%b %s\n" \
-        "${UI_ACCENT}" "${left_num_width}" "${left_key}" "${UI_RESET}" "${left_label_width}" "${left_label}" \
-        "${UI_ACCENT}" "${right_num_width}" "${right_key}" "${UI_RESET}" "${right_label}"
-    else
-      printf "  %b%*s)%b %s\n" \
-        "${UI_ACCENT}" "${left_num_width}" "${left_key}" "${UI_RESET}" "${left_label}"
-    fi
-  done
+  ui_menu_render_two_columns_fixed "$@"
 }
 
 ui_menu_render_two_columns_fixed() {
   local ref_name="$1"
   local -n menu_items="${ref_name}"
   local split total left_count right_count
-  local left_num_width=0 right_num_width=0 left_label_width=0 right_label_width=0
-  local shared_label_width=0
   local i left_key left_label right_key right_label
+  local left_num right_num left_color right_color
   total="${#menu_items[@]}"
   split=$(( (total + 1) / 2 ))
   left_count="${split}"
@@ -2568,29 +2687,29 @@ ui_menu_render_two_columns_fixed() {
 
   for (( i=0; i<left_count; i++ )); do
     IFS='|' read -r left_key left_label <<<"${menu_items[$i]}"
-    (( ${#left_key} > left_num_width )) && left_num_width=${#left_key}
-    (( ${#left_label} > left_label_width )) && left_label_width=${#left_label}
-  done
-  for (( i=0; i<right_count; i++ )); do
-    IFS='|' read -r right_key right_label <<<"${menu_items[$((split + i))]}"
-    (( ${#right_key} > right_num_width )) && right_num_width=${#right_key}
-    (( ${#right_label} > right_label_width )) && right_label_width=${#right_label}
-  done
+    if [[ "${left_key}" =~ ^[0-9]$ ]]; then
+      left_num="0${left_key}"
+    else
+      left_num="${left_key}"
+    fi
+    left_color="${UI_WARN}"
+    if [[ "${left_key}" == "0" ]]; then left_color="${UI_ERR}"; fi
 
-  shared_label_width="${left_label_width}"
-  (( right_label_width > shared_label_width )) && shared_label_width="${right_label_width}"
-  shared_label_width=$(( shared_label_width + 2 ))
-
-  for (( i=0; i<left_count; i++ )); do
-    IFS='|' read -r left_key left_label <<<"${menu_items[$i]}"
     if (( i < right_count )); then
       IFS='|' read -r right_key right_label <<<"${menu_items[$((split + i))]}"
-      printf "  %b%*s)%b %-*s  %b%*s)%b %s\n" \
-        "${UI_ACCENT}" "${left_num_width}" "${left_key}" "${UI_RESET}" "${shared_label_width}" "${left_label}" \
-        "${UI_ACCENT}" "${right_num_width}" "${right_key}" "${UI_RESET}" "${right_label}"
+      if [[ "${right_key}" =~ ^[0-9]$ ]]; then
+        right_num="0${right_key}"
+      else
+        right_num="${right_key}"
+      fi
+      right_color="${UI_WARN}"
+      if [[ "${right_key}" == "0" ]]; then right_color="${UI_ERR}"; fi
+
+      printf "  ${UI_BORDER}[${left_color}%2s${UI_BORDER}]${UI_RESET} ${UI_WHITE}%-23s${UI_RESET} ${UI_BORDER}[${right_color}%2s${UI_BORDER}]${UI_RESET} ${UI_WHITE}%s${UI_RESET}\n" \
+        "${left_num}" "${left_label}" "${right_num}" "${right_label}"
     else
-      printf "  %b%*s)%b %s\n" \
-        "${UI_ACCENT}" "${left_num_width}" "${left_key}" "${UI_RESET}" "${left_label}"
+      printf "  ${UI_BORDER}[${left_color}%2s${UI_BORDER}]${UI_RESET} ${UI_WHITE}%s${UI_RESET}\n" \
+        "${left_num}" "${left_label}"
     fi
   done
 }
@@ -2680,9 +2799,10 @@ title() {
   if [[ -t 1 ]] && command -v clear >/dev/null 2>&1; then
     clear || true
   fi
-  echo -e "${UI_BOLD}${UI_ACCENT}Control Panel${UI_RESET}"
-  echo -e "${UI_MUTED}Host: $(hostname) | Script: ${0##*/}${UI_RESET}"
-  hr
+  echo -e "${UI_BORDER}╭────────────────────────────────────────────────────────────╮${UI_RESET}"
+  echo -e "${UI_BORDER}│${UI_BOLD}${UI_ACCENT}               AUTOSCRIPT MANAGEMENT PANEL                  ${UI_BORDER}│${UI_RESET}"
+  printf "${UI_BORDER}│${UI_MUTED}  %-56s  ${UI_BORDER}│${UI_RESET}\n" "Host: $(hostname 2>/dev/null || echo "vps") | Script: ${0##*/}"
+  echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
 }
 
 # -------------------------

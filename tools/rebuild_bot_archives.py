@@ -53,6 +53,32 @@ def write_archive(bot_dir: Path, archive_path: Path, extra_skip_roots: set[tuple
     tmp_path.replace(archive_path)
 
 
+def write_manage_bundle(archive_path: Path) -> None:
+    tmp_path = archive_path.with_suffix(archive_path.suffix + ".tmp")
+    with zipfile.ZipFile(tmp_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for top_file in ["manage.sh", "install-telegram-bot.sh"]:
+            src = REPO_ROOT / top_file
+            if src.is_file():
+                info = zipfile.ZipInfo(top_file)
+                info.date_time = FIXED_ZIP_DT
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.external_attr = ((stat.S_IFREG | 0o755) << 16)
+                zf.writestr(info, src.read_bytes())
+
+        manage_root = REPO_ROOT / "opt" / "manage"
+        if manage_root.is_dir():
+            for path in sorted(manage_root.rglob("*")):
+                if path.is_file():
+                    rel = path.relative_to(REPO_ROOT).as_posix()
+                    info = zipfile.ZipInfo(rel)
+                    info.date_time = FIXED_ZIP_DT
+                    info.compress_type = zipfile.ZIP_DEFLATED
+                    info.external_attr = ((stat.S_IFREG | 0o755 if path.suffix == ".sh" else stat.S_IFREG | 0o644) << 16)
+                    zf.writestr(info, path.read_bytes())
+
+    tmp_path.replace(archive_path)
+
+
 def main() -> None:
     for bot_name, cfg in BOT_CONFIGS.items():
         bot_dir = REPO_ROOT / bot_name
@@ -60,6 +86,10 @@ def main() -> None:
         extra_skip_roots = cfg["extra_skip_roots"]
         write_archive(bot_dir, archive_path, extra_skip_roots)
         print(f"{bot_name} rebuilt -> {archive_path.name}")
+
+    manage_archive = REPO_ROOT / "manage_bundle.zip"
+    write_manage_bundle(manage_archive)
+    print(f"manage_bundle rebuilt -> {manage_archive.name}")
 
 
 if __name__ == "__main__":

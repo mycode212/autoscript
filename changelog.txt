@@ -1,0 +1,5 @@
+* v1.0.0: Initial Core Xray VPN, SSH WS, Dropbear, BadVPN UDPGW, Cloudflare DNS.
+* v1.1.0: Penambahan Multi-protocol QAC Quota Limit, Expiration Cleaner, WARP Routing.
+* v1.2.0: Penambahan Fitur Trial SSH 1 Hari, Banner SSH & MOTD Customizer.
+* v1.3.0: Redesign UI Management Panel dengan Boxed Style & Live Statistics.
+* v1.4.0: Fitur Auto Updater 'update.sh' & CLI command integration.

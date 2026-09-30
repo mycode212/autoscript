@@ -3620,3 +3620,22 @@ def op_sshws_active_sessions() -> tuple[str, str]:
         ]
     )
     return title, msg
+
+
+def op_banner_view() -> tuple[str, str]:
+    title = "Banner SSH & Login"
+    ssh_banner_path = Path("/etc/issue.net")
+    motd_path = Path("/etc/motd")
+
+    ssh_banner = ssh_banner_path.read_text(encoding="utf-8", errors="ignore").strip() if ssh_banner_path.is_file() else ""
+    motd = motd_path.read_text(encoding="utf-8", errors="ignore").strip() if motd_path.is_file() else ""
+
+    lines = [
+        "--- [1] SSH PRE-LOGIN BANNER (/etc/issue.net) ---",
+        ssh_banner if ssh_banner else "(Kosong / Belum diset)",
+        "",
+        "--- [2] LOGIN TERMINAL MOTD (/etc/motd) ---",
+        motd if motd else "(Kosong / Belum diset)",
+    ]
+    return title, "\n".join(lines)
+

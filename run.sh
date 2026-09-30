@@ -41,6 +41,9 @@ TELEGRAM_BOT_SRC_DIR="${REPO_DIR}/bot-telegram"
 RUN_FALLBACK_REQUIRED_FILES=(
   "setup.sh"
   "manage.sh"
+  "update.sh"
+  "version"
+  "changelog.txt"
   "install-telegram-bot.sh"
   "opt/setup/core/logging.sh"
   "opt/setup/core/helpers.sh"
@@ -79,6 +82,8 @@ RUN_FALLBACK_REQUIRED_FILES=(
   "opt/manage/features/network/ssh_network.sh"
   "opt/manage/features/maintenance/security.sh"
   "opt/manage/features/maintenance/tools.sh"
+  "opt/manage/features/maintenance/banner.sh"
+  "opt/manage/features/maintenance/updater.sh"
   "opt/manage/features/maintenance/runtime_services.sh"
   "opt/manage/features/backup.sh"
   "opt/manage/menus/maintenance_menu.sh"
@@ -579,6 +584,24 @@ install_manage() {
   log "Pasang installer Telegram -> ${TELEGRAM_INSTALLER_BIN} ..."
   install -m 0755 "${telegram_installer_src}" "${TELEGRAM_INSTALLER_BIN}"
   ok "Installer Telegram siap."
+
+  if [[ -f "${REPO_DIR}/update.sh" ]]; then
+    log "Pasang updater -> /usr/local/bin/update ..."
+    install -m 0755 "${REPO_DIR}/update.sh" /usr/local/bin/update
+    install -m 0755 "${REPO_DIR}/update.sh" /usr/local/bin/update-script 2>/dev/null || true
+    ok "Updater siap (/usr/local/bin/update)."
+  fi
+
+  if [[ -f "${REPO_DIR}/version" ]]; then
+    mkdir -p /etc/autoscript
+    install -m 0644 "${REPO_DIR}/version" /etc/autoscript/version
+    ok "Versi script: $(cat /etc/autoscript/version 2>/dev/null || echo '1.0.0')"
+  fi
+
+  if [[ -f "${REPO_DIR}/changelog.txt" ]]; then
+    mkdir -p /etc/autoscript
+    install -m 0644 "${REPO_DIR}/changelog.txt" /etc/autoscript/changelog.txt 2>/dev/null || true
+  fi
 }
 
 seed_telegram_bot_home() {

@@ -2436,11 +2436,12 @@ ssh_menu() {
   local pending_count=0
   local -a items=(
     "1|Add User"
-    "2|Delete User"
-    "3|Set Expiry"
-    "4|Reset Password"
-    "5|List Users"
-    "6|Recover Pending Txn"
+    "2|Trial User (1 Hari)"
+    "3|Delete User"
+    "4|Set Expiry"
+    "5|Reset Password"
+    "6|List Users"
+    "7|Recover Pending Txn"
     "0|Back"
   )
   while true; do
@@ -2471,7 +2472,7 @@ ssh_menu() {
           warn "Mutasi SSH baru ditahan sampai journal recovery tertunda diselesaikan."
           pause
         else
-          menu_run_isolated_report "Delete SSH User" ssh_delete_user_menu
+          menu_run_isolated_report "Trial SSH User" ssh_trial_user_menu
         fi
         ;;
       3)
@@ -2479,7 +2480,7 @@ ssh_menu() {
           warn "Mutasi SSH baru ditahan sampai journal recovery tertunda diselesaikan."
           pause
         else
-          menu_run_isolated_report "Set SSH Expiry" ssh_extend_expiry_menu
+          menu_run_isolated_report "Delete SSH User" ssh_delete_user_menu
         fi
         ;;
       4)
@@ -2487,11 +2488,19 @@ ssh_menu() {
           warn "Mutasi SSH baru ditahan sampai journal recovery tertunda diselesaikan."
           pause
         else
+          menu_run_isolated_report "Set SSH Expiry" ssh_extend_expiry_menu
+        fi
+        ;;
+      5)
+        if (( pending_count > 0 )); then
+          warn "Mutasi SSH baru ditahan sampai journal recovery tertunda diselesaikan."
+          pause
+        else
           menu_run_isolated_report "Reset SSH Password" ssh_reset_password_menu
         fi
         ;;
-      5) ssh_list_users_menu ;;
-      6) menu_run_isolated_report "Recover Pending SSH Txn" ssh_recover_pending_txn_menu ;;
+      6) ssh_list_users_menu ;;
+      7) menu_run_isolated_report "Recover Pending SSH Txn" ssh_recover_pending_txn_menu ;;
       0|kembali|k|back|b) break ;;
       *) invalid_choice ;;
     esac

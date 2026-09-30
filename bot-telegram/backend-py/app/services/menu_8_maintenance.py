@@ -85,4 +85,28 @@ def handle(action: str, params: dict, settings) -> dict:
             return ok_response(title, msg)
         return error_response("restart_service_failed", title, msg)
 
+    if action == "view_banner":
+        title, msg = system.op_banner_view()
+        return ok_response(title, msg)
+
+    if action == "set_ssh_banner":
+        content = str(params.get("content") or "").strip()
+        ok, title, msg = system_mutations.op_banner_set_ssh(content)
+        if ok:
+            return ok_response(title, msg)
+        return error_response("set_banner_failed", title, msg)
+
+    if action == "set_motd_banner":
+        content = str(params.get("content") or "").strip()
+        ok, title, msg = system_mutations.op_banner_set_motd(content)
+        if ok:
+            return ok_response(title, msg)
+        return error_response("set_banner_failed", title, msg)
+
+    if action == "reset_banner":
+        ok, title, msg = system_mutations.op_banner_reset()
+        if ok:
+            return ok_response(title, msg)
+        return error_response("reset_banner_failed", title, msg)
+
     return error_response("unknown_action", "Maintenance", f"Action tidak dikenal: {action}")

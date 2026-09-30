@@ -1,5 +1,7 @@
 import base64
+import random
 import re
+import string
 
 from ..adapters import system, system_mutations
 from ..utils.response import error_response, ok_response
@@ -16,6 +18,18 @@ USER_PROTOCOLS = tuple(system.USER_PROTOCOLS)
 XRAY_ONLY_PROTOCOLS = tuple(system.XRAY_PROTOCOLS)
 SSH_ONLY_PROTOCOLS = (system.SSH_PROTOCOL,)
 PASSWORD_VISIBLE_PROTOCOLS = {system.SSH_PROTOCOL}
+
+
+def _generate_trial_credentials() -> tuple[str, str]:
+    for _ in range(50):
+        digits = "".join(random.choices(string.digits, k=4))
+        cand = f"trial{digits}"
+        exists, _ = system_mutations._username_exists_anywhere(cand)
+        if not exists:
+            password = "".join(random.choices(string.digits, k=6))
+            return cand, password
+    digits = "".join(random.choices(string.digits, k=6))
+    return f"trial{digits}", "".join(random.choices(string.digits, k=6))
 
 
 def _fmt_number(value: float) -> str:
@@ -233,6 +247,61 @@ def handle_scoped(action: str, params: dict, settings, *, scope: str = "all") ->
             lines.append(f"(XRAY ACCOUNT INFO tidak ditemukan: {account_path})")
         return ok_response(title, "\n".join(lines), data=_mark_account_info_render(data))
 
+    if action == "trial_user":
+        title = _scope_title(scope, "Create Trial User")
+        proto = system.SSH_PROTOCOL
+        trial_user, trial_pass = _generate_trial_credentials()
+
+        ok_add, _title_add, msg_add = system_mutations.op_user_add(
+            proto=proto,
+            username=trial_user,
+            days=1,
+            quota_gb=1.0,
+            ip_enabled=True,
+            ip_limit=1,
+            speed_enabled=False,
+            speed_down_mbit=0.0,
+            speed_up_mbit=0.0,
+            password=trial_pass,
+        )
+        if not ok_add:
+            return error_response("trial_user_failed", title, msg_add)
+
+        data: dict[str, object] = {
+            "add_user_summary": {
+                "username": trial_user,
+                "protocol": proto,
+                "active_days": 1,
+                "quota_gb": "1 GB",
+                "ip_limit": "ON (1)",
+                "speed_limit": "OFF",
+            }
+        }
+        ok_download, download_or_err = system_mutations.op_user_account_file_download(proto, trial_user)
+        if ok_download and isinstance(download_or_err, dict):
+            data["download_file"] = download_or_err
+        else:
+            data["download_error"] = str(download_or_err)
+
+        account_path = _extract_add_user_path(msg_add, "Account")
+        quota_path = _extract_add_user_path(msg_add, "Quota")
+        _title_info, account_text = system.op_account_info(system.SSH_PROTOCOL, trial_user)
+        lines = [
+            "Buat Trial SSH sukses ✅",
+            "",
+            "Account file:",
+            f"  {account_path}",
+            "Metadata file:",
+            f"  {quota_path}",
+            "",
+            "SSH ACCOUNT INFO:",
+        ]
+        if account_text:
+            lines.append(account_text)
+        else:
+            lines.append(f"(SSH ACCOUNT INFO tidak ditemukan: {account_path})")
+        return ok_response(title, "\n".join(lines), data=_allow_sensitive_output(_mark_account_info_render(data)))
+
     if action == "delete_user":
         title = _scope_title(scope, "Delete User")
         ok_p, proto_or_err = _resolve_proto(params, title, scope)
@@ -351,6 +420,30 @@ def handle_scoped(action: str, params: dict, settings, *, scope: str = "all") ->
         if _proto_requires_sensitive_output(str(proto_or_err)):
             data = _allow_sensitive_output(data)
         return ok_response(title, msg_info, data=_mark_account_info_render(data))
+
+    if action == "view_banner":
+        title, msg = system.op_banner_view()
+        return ok_response(title, msg)
+
+    if action == "set_ssh_banner":
+        content = str(params.get("content") or "").strip()
+        ok, title, msg = system_mutations.op_banner_set_ssh(content)
+        if ok:
+            return ok_response(title, msg)
+        return error_response("set_banner_failed", title, msg)
+
+    if action == "set_motd_banner":
+        content = str(params.get("content") or "").strip()
+        ok, title, msg = system_mutations.op_banner_set_motd(content)
+        if ok:
+            return ok_response(title, msg)
+        return error_response("set_banner_failed", title, msg)
+
+    if action == "reset_banner":
+        ok, title, msg = system_mutations.op_banner_reset()
+        if ok:
+            return ok_response(title, msg)
+        return error_response("reset_banner_failed", title, msg)
 
     return error_response("unknown_action", _scope_title(scope, ""), f"Action tidak dikenal: {action}")
 

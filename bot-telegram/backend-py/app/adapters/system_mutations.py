@@ -9028,3 +9028,58 @@ def op_network_adblock_set_auto_update_days(days: int) -> tuple[bool, str, str]:
                     return False, title, f"{failure_msg}\nRollback gagal:\n" + "\n".join(rollback_notes)
                 return False, title, failure_msg
     return True, title, f"Interval Auto Update di-set setiap {int(days)} hari."
+
+
+def op_banner_set_ssh(content: str) -> tuple[bool, str, str]:
+    title = "Set Banner SSH"
+    banner_text = str(content or "").strip()
+    if not banner_text:
+        return False, title, "Teks banner SSH tidak boleh kosong."
+
+    ssh_banner_path = Path("/etc/issue.net")
+    try:
+        ssh_banner_path.write_text(banner_text + "\n", encoding="utf-8")
+        ssh_banner_path.chmod(0o644)
+    except Exception as exc:
+        return False, title, f"Gagal menulis /etc/issue.net: {exc}"
+
+    sshd_conf_dir = Path("/etc/ssh/sshd_config.d")
+    if sshd_conf_dir.is_dir():
+        conf_file = sshd_conf_dir / "50-autoscript-banner.conf"
+        try:
+            conf_file.write_text("Banner /etc/issue.net\n", encoding="utf-8")
+            conf_file.chmod(0o644)
+        except Exception:
+            pass
+
+    _run_cmd(["systemctl", "reload", "ssh"], timeout=10)
+    _run_cmd(["systemctl", "reload", "sshd"], timeout=10)
+    return True, title, "Banner SSH (/etc/issue.net) berhasil disimpan."
+
+
+def op_banner_set_motd(content: str) -> tuple[bool, str, str]:
+    title = "Set Banner MOTD"
+    motd_text = str(content or "").strip()
+    if not motd_text:
+        return False, title, "Teks banner MOTD tidak boleh kosong."
+
+    motd_path = Path("/etc/motd")
+    try:
+        motd_path.write_text(motd_text + "\n", encoding="utf-8")
+        motd_path.chmod(0o644)
+    except Exception as exc:
+        return False, title, f"Gagal menulis /etc/motd: {exc}"
+
+    return True, title, "Banner Login MOTD (/etc/motd) berhasil disimpan."
+
+
+def op_banner_reset() -> tuple[bool, str, str]:
+    title = "Reset Banner"
+    try:
+        Path("/etc/issue.net").write_text("", encoding="utf-8")
+        Path("/etc/motd").write_text("", encoding="utf-8")
+    except Exception as exc:
+        return False, title, f"Gagal mereset banner: {exc}"
+
+    return True, title, "Banner SSH dan MOTD berhasil dikosongkan."
+

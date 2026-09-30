@@ -20,7 +20,9 @@ tools_menu() {
     "2|WARP Tier"
     "3|License Guard"
     "4|Backup/Restore"
-    "5|Uninstall"
+    "5|Banner SSH & Login"
+    "6|Update Script"
+    "7|Uninstall"
     "0|Back"
   )
   while true; do
@@ -36,7 +38,9 @@ tools_menu() {
       2) tools_warp_tier_menu ;;
       3|license|license-guard) run_action "License Guard" autoscript_license_status_menu ;;
       4|backup|restore|backup-restore) run_action "Backup/Restore" backup_restore_menu ;;
-      5|uninstall) autoscript_uninstall_menu ;;
+      5|banner) run_action "Banner SSH & Login" tools_banner_menu ;;
+      6|update|upgrade) run_action "Update Script" tools_updater_menu ;;
+      7|uninstall) autoscript_uninstall_menu ;;
       0|kembali|k|back|b) break ;;
       *) warn "Pilihan tidak valid" ; sleep 1 ;;
     esac
@@ -64,6 +68,19 @@ main_menu_render_options() {
   ui_menu_render_two_columns_fixed items
 }
 
+main_menu_license_footer_print() {
+  local ip license_status license_days
+  ip="${MAIN_INFO_CACHE_IP:-$(detect_public_ip 2>/dev/null || echo "-")}"
+  license_status="${MAIN_INFO_CACHE_LICENSE_STATUS:-ACTIVE}"
+  license_days="${MAIN_INFO_CACHE_LICENSE_DAYS:-Lifetime Premium}"
+  echo -e "${UI_BORDER}╭───────────────────────[ LICENSE ]──────────────────────────╮${UI_RESET}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-10s${UI_RESET} : ${UI_WHITE}%-46s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "License" "${ip:0:46}"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-10s${UI_RESET} : ${UI_WARN}%-46s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "Type" "Lifetime Premium"
+  local status_str="${license_status} (${license_days})"
+  printf "${UI_BORDER}│${UI_RESET}  ${UI_ACCENT}%-10s${UI_RESET} : ${UI_SUCCESS}%-46s${UI_RESET}${UI_BORDER}│${UI_RESET}\n" "Status" "${status_str:0:46}"
+  echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
+}
+
 main_menu_render_license_block_notice() {
   local reason="${MANAGE_LICENSE_BLOCK_REASON:-Akses manage ditolak oleh license guard.}"
   main_menu_center_line "License Info"
@@ -87,11 +104,12 @@ main_menu() {
       fi
       exit 1
     fi
-    main_menu_center_line "Main Menu"
-    hr
+    echo -e "${UI_BORDER}╭──────────────────────[ MAIN MENU ]─────────────────────────╮${UI_RESET}"
     main_menu_render_options
-    hr
-    if ! read -r -p "Pilih: " c; then
+    echo -e "${UI_BORDER}╰────────────────────────────────────────────────────────────╯${UI_RESET}"
+    main_menu_license_footer_print
+    echo
+    if ! read -r -p "Select Menu : " c; then
       echo
       exit 0
     fi
@@ -109,7 +127,7 @@ main_menu() {
       11|maintenance|maint) run_action "Maintenance" maintenance_menu ;;
       12|analytics|traffic) run_action "Traffic" traffic_analytics_menu ;;
       13|tools) tools_menu ;;
-      0|kembali|k|back|b) exit 0 ;;
+      0|kembali|k|back|b|x) exit 0 ;;
       *) invalid_choice ;;
     esac
   done

@@ -3505,6 +3505,104 @@ ssh_reset_password_apply_locked() {
   pause
 }
 
+ssh_random_trial_username() {
+  local candidate="" attempts=0 rand_digits=""
+  while (( attempts < 50 )); do
+    rand_digits="$(head -c 16 /dev/urandom 2>/dev/null | tr -dc '0-9' | head -c 4 || true)"
+    if [[ -z "${rand_digits}" || ${#rand_digits} -lt 4 ]]; then
+      rand_digits="$((RANDOM % 9000 + 1000))"
+    fi
+    candidate="trial${rand_digits}"
+    if ! ssh_username_duplicate_reason "${candidate}" >/dev/null 2>&1; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+    attempts=$((attempts + 1))
+  done
+  printf 'trial%s\n' "$((RANDOM % 9000 + 1000))"
+}
+
+ssh_random_trial_password() {
+  local pass=""
+  pass="$(head -c 16 /dev/urandom 2>/dev/null | tr -dc '0-9' | head -c 6 || true)"
+  if [[ -z "${pass}" || ${#pass} -lt 6 ]]; then
+    pass="$((RANDOM % 900000 + 100000))"
+  fi
+  printf '%s\n' "${pass}"
+}
+
+ssh_trial_user_menu() {
+  title
+  echo "2) SSH Users > Create Trial User"
+  hr
+
+  local username password qf acc_file
+  username="$(ssh_random_trial_username)"
+  password="$(ssh_random_trial_password)"
+
+  if ! ssh_username_valid "${username}"; then
+    warn "Username trial tidak valid: ${username}"
+    pause
+    return 0
+  fi
+  local dup_reason=""
+  if dup_reason="$(ssh_username_duplicate_reason "${username}")"; then
+    warn "${dup_reason}"
+    pause
+    return 0
+  fi
+
+  qf="$(ssh_user_state_file "${username}")"
+  acc_file="$(ssh_account_info_file "${username}")"
+
+  local active_days=1
+  local quota_gb=1
+  local quota_bytes
+  quota_bytes="$(bytes_from_gb "${quota_gb}")"
+  local ip_enabled="true" ip_limit="1"
+  local speed_enabled="false" speed_down="0" speed_up="0"
+
+  local expired_at created_at
+  expired_at="$(date -d "+${active_days} days" '+%Y-%m-%d' 2>/dev/null || date -v+1d '+%Y-%m-%d' 2>/dev/null || true)"
+  if [[ -z "${expired_at}" ]]; then
+    warn "Gagal menghitung tanggal expiry SSH."
+    pause
+    return 1
+  fi
+  created_at="$(date '+%Y-%m-%d')"
+
+  echo "Detail Akun Trial SSH (1 Hari):"
+  echo "  Username : ${username}"
+  echo "  Password : ${password}"
+  echo "  Expired  : ${active_days} hari (sampai ${expired_at})"
+  echo "  Quota    : ${quota_gb} GB"
+  echo "  IP Limit : ${ip_enabled} (${ip_limit} IP)"
+  echo "  Speed    : false"
+  hr
+
+  local create_confirm_rc=0
+  if confirm_yn_or_back "Buat akun Trial SSH ini sekarang?"; then
+    :
+  else
+    create_confirm_rc=$?
+    if (( create_confirm_rc == 2 )); then
+      warn "Pembuatan akun Trial SSH dibatalkan (kembali)."
+      pause
+      return 0
+    fi
+    warn "Pembuatan akun Trial SSH dibatalkan."
+    pause
+    return 0
+  fi
+
+  if user_data_mutation_run_locked ssh_add_user_apply_locked "${username}" "${qf}" "${acc_file}" "${password}" "${expired_at}" "${created_at}" "${quota_bytes}" "${ip_enabled}" "${ip_limit}" "${speed_enabled}" "${speed_down}" "${speed_up}"; then
+    password=""
+    return 0
+  fi
+  password=""
+  return 1
+}
+
 ssh_add_user_menu() {
   local username qf acc_file header_page=0
   while true; do
