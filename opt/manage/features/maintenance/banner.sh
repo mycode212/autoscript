@@ -30,7 +30,16 @@ banner_sync_ssh_config() {
     fi
   fi
 
-  # 3. Sync Dropbear default configuration if exists
+  # 3. Sync Dropbear systemd service file (ensure -b flag exists)
+  local dropbear_svc_file="/etc/systemd/system/sshws-dropbear.service"
+  if [[ -f "${dropbear_svc_file}" ]]; then
+    if ! grep -q -- "-b " "${dropbear_svc_file}" 2>/dev/null; then
+      sed -i -E "s|(/usr/sbin/dropbear[[:space:]]+)|\1-b ${banner_path} |g" "${dropbear_svc_file}" 2>/dev/null || true
+      systemctl daemon-reload >/dev/null 2>&1 || true
+    fi
+  fi
+
+  # 4. Sync Dropbear default configuration if exists
   if [[ -f /etc/default/dropbear ]]; then
     if grep -q "^DROPBEAR_BANNER=" /etc/default/dropbear 2>/dev/null; then
       sed -i "s|^DROPBEAR_BANNER=.*|DROPBEAR_BANNER=\"${banner_path}\"|g" /etc/default/dropbear 2>/dev/null || true
@@ -39,7 +48,7 @@ banner_sync_ssh_config() {
     fi
   fi
 
-  # 4. Restart / Reload OpenSSH & Dropbear Services
+  # 5. Restart / Reload OpenSSH & Dropbear Services
   if systemctl is-active --quiet ssh 2>/dev/null; then
     systemctl restart ssh >/dev/null 2>&1 || systemctl reload ssh >/dev/null 2>&1 || true
   elif systemctl is-active --quiet sshd 2>/dev/null; then
@@ -48,9 +57,6 @@ banner_sync_ssh_config() {
 
   if systemctl is-active --quiet sshws-dropbear 2>/dev/null; then
     systemctl restart sshws-dropbear >/dev/null 2>&1 || true
-  fi
-  if systemctl is-active --quiet dropbear 2>/dev/null; then
-    systemctl restart dropbear >/dev/null 2>&1 || true
   fi
 }
 
@@ -208,6 +214,11 @@ banner_set_ssh_manual() {
   fi
   local final_content
   final_content="$(banner_apply_watermark_if_trial "${buffer}")"
+  local byte_len="${#final_content}"
+  if (( byte_len > 1950 )); then
+    warn "Perhatian: Ukuran banner (${byte_len} bytes) mendekati batas maksimal Dropbear (2048 bytes)."
+    warn "Gunakan format HTML yang ringkas agar koneksi SSH WebSocket stabil."
+  fi
   printf '%s\n' "${final_content}" > "${SSH_BANNER_FILE}"
   chmod 644 "${SSH_BANNER_FILE}" 2>/dev/null || true
   (

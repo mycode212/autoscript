@@ -1,4 +1,4 @@
-import { Activity, CalendarDays, CheckCircle2, Copy, Database, Globe, LocateFixed, ShieldCheck, User } from "lucide-react"
+import { CalendarDays, CheckCircle2, Copy, Database, LocateFixed, ShieldCheck, User } from "lucide-react"
 import { useState } from "react"
 
 import type { AccountSummary } from "@/types/portal"

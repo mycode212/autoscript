@@ -1,4 +1,4 @@
-import { Database, HardDrive, PieChart } from "lucide-react"
+import { Database } from "lucide-react"
 
 import type { AccountSummary } from "@/types/portal"
 
