@@ -2359,8 +2359,8 @@ main_info_remote_version_get() {
 
   if [[ -f "${cache_file}" ]]; then
     local cache_ts
-    cache_ts="$(stat -c %Y "${cache_file}" 2>/dev/null || echo 0)"
-    if (( now - cache_ts < 3600 )); then
+    cache_ts="$(stat -c %Y "${cache_file}" 2>/dev/null || stat -f %m "${cache_file}" 2>/dev/null || echo 0)"
+    if (( now - cache_ts < 60 )); then
       remote_ver="$(head -n1 "${cache_file}" 2>/dev/null | tr -d ' \r\n' || true)"
       if [[ -n "${remote_ver}" && "${remote_ver}" =~ ^[0-9]+(\.[0-9]+)* ]]; then
         printf '%s\n' "${remote_ver}"
@@ -2370,7 +2370,9 @@ main_info_remote_version_get() {
   fi
 
   if command -v curl >/dev/null 2>&1; then
-    remote_ver="$(curl -fsSL --connect-timeout 2 --max-time 3 "https://raw.githubusercontent.com/mycode212/autoscript/main/version" 2>/dev/null | head -n1 | tr -d ' \r\n' || true)"
+    remote_ver="$(curl -fsSL --connect-timeout 3 --max-time 5 -H "Cache-Control: no-cache" -H "Pragma: no-cache" "https://raw.githubusercontent.com/mycode212/autoscript/main/version?t=${now}" 2>/dev/null | head -n1 | tr -d ' \r\n' || true)"
+  elif command -v wget >/dev/null 2>&1; then
+    remote_ver="$(wget -qO- --timeout=5 --no-cache "https://raw.githubusercontent.com/mycode212/autoscript/main/version?t=${now}" 2>/dev/null | head -n1 | tr -d ' \r\n' || true)"
   fi
   if [[ -z "${remote_ver}" || ! "${remote_ver}" =~ ^[0-9]+(\.[0-9]+)* ]]; then
     if [[ -f "${cache_file}" ]]; then
@@ -2399,8 +2401,7 @@ main_info_script_version_get() {
   rem_ver="$(main_info_remote_version_get)"
   local has_update=0
   if [[ -n "${rem_ver}" ]]; then
-    main_info_version_compare "${cur_ver}" "${rem_ver}"
-    if [[ $? -eq 0 ]]; then
+    if main_info_version_compare "${cur_ver}" "${rem_ver}"; then
       has_update=1
     fi
   fi

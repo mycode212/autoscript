@@ -46,11 +46,12 @@ autoscript_version_current_get() {
 }
 
 autoscript_version_remote_get() {
-  local remote_ver=""
+  local remote_ver="" now
+  now="$(date +%s 2>/dev/null || echo 0)"
   if command -v curl >/dev/null 2>&1; then
-    remote_ver="$(curl -fsSL --connect-timeout 4 --max-time 8 "${AUTOSCRIPT_VERSION_REMOTE_URL}" 2>/dev/null | head -n1 | tr -d ' \r\n' || true)"
+    remote_ver="$(curl -fsSL --connect-timeout 4 --max-time 8 -H "Cache-Control: no-cache" -H "Pragma: no-cache" "${AUTOSCRIPT_VERSION_REMOTE_URL}?t=${now}" 2>/dev/null | head -n1 | tr -d ' \r\n' || true)"
   elif command -v wget >/dev/null 2>&1; then
-    remote_ver="$(wget -qO- --timeout=8 "${AUTOSCRIPT_VERSION_REMOTE_URL}" 2>/dev/null | head -n1 | tr -d ' \r\n' || true)"
+    remote_ver="$(wget -qO- --timeout=8 --no-cache "${AUTOSCRIPT_VERSION_REMOTE_URL}?t=${now}" 2>/dev/null | head -n1 | tr -d ' \r\n' || true)"
   fi
   if [[ -z "${remote_ver}" || ! "${remote_ver}" =~ ^[0-9]+(\.[0-9]+)* ]]; then
     remote_ver="-"
