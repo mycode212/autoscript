@@ -208,7 +208,7 @@ banner_set_ssh_manual() {
   fi
   local final_content
   final_content="$(banner_apply_watermark_if_trial "${buffer}")"
-  printf '%s' "${final_content}" > "${SSH_BANNER_FILE}"
+  printf '%s\n' "${final_content}" > "${SSH_BANNER_FILE}"
   chmod 644 "${SSH_BANNER_FILE}" 2>/dev/null || true
   (
     banner_sync_ssh_config "${SSH_BANNER_FILE}"
