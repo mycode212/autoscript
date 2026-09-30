@@ -648,6 +648,15 @@ cf_prepare_subdomain_a_record() {
 }
 
 domain_menu_v2() {
+  if [[ -n "${DOMAIN:-}" ]]; then
+    DOMAIN="${DOMAIN,,}"
+    ok "Domain diset otomatis via Environment / Master Panel: ${DOMAIN}"
+    ACME_CERT_MODE="${ACME_CERT_MODE:-standalone}"
+    ACME_ROOT_DOMAIN=""
+    CF_ZONE_ID=""
+    return 0
+  fi
+
   ui_header "Konfigurasi Domain TLS"
   echo -e "${DIM}Pilih metode domain untuk proses setup.${NC}"
   echo -e "  ${CYAN}1)${NC} Input domain manual"

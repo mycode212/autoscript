@@ -260,6 +260,7 @@ ensure_runtime_lock_dirs() {
 }
 
 ensure_stdin_available() {
+  [[ "${AUTO_INSTALL:-0}" == "1" ]] && return 0
   if [[ ! -t 0 ]]; then
     local tty_name=""
     local tty_path=""
