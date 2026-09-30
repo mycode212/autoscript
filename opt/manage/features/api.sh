@@ -15,7 +15,10 @@ data_raw = sys.argv[3]
 try:
     data = json.loads(data_raw)
 except Exception:
-    data = {"raw": data_raw}
+    try:
+        data = json.loads(data_raw.replace("\\\"", "\""))
+    except Exception:
+        data = {"raw": data_raw}
 
 print(json.dumps({
     "success": success,
