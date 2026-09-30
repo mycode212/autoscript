@@ -4207,6 +4207,7 @@ MANAGE_REQUIRED_MODULES=(
   "core/ui.sh"
   "core/license.sh"
   "features/users.sh"
+  "features/api.sh"
   "features/domain.sh"
   "features/maintenance.sh"
   "features/network.sh"

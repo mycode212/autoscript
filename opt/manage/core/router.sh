@@ -9,7 +9,13 @@ manage_router_dispatch() {
       return 0
       ;;
     api)
-      source_manage_module "features/api.sh" 2>/dev/null || true
+      if ! declare -f api_dispatch >/dev/null 2>&1; then
+        if [[ -f "${MANAGE_MODULES_DIR:-/opt/manage}/features/api.sh" ]]; then
+          . "${MANAGE_MODULES_DIR:-/opt/manage}/features/api.sh"
+        elif [[ -f "/opt/autoscript/opt/manage/features/api.sh" ]]; then
+          . "/opt/autoscript/opt/manage/features/api.sh"
+        fi
+      fi
       api_dispatch "$@"
       ;;
     user|users|xray-users)
