@@ -978,10 +978,9 @@ warp_zero_trust_service_restart_checked() {
   fi
   systemctl enable "${WARP_ZEROTRUST_SERVICE}" >/dev/null 2>&1 || true
 
-  # Bersihkan sesi dan registrasi lama agar daemon membaca ulang mdm.xml
+  # Putuskan koneksi lama sebelum restart daemon
   if have_cmd warp-cli; then
     warp_zero_trust_cli_run disconnect >/dev/null 2>&1 || true
-    warp_zero_trust_cli_run registration delete >/dev/null 2>&1 || true
   fi
 
   if ! svc_restart_checked "${WARP_ZEROTRUST_SERVICE}" 30 >/dev/null 2>&1; then
