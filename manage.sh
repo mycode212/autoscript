@@ -2787,10 +2787,21 @@ ui_menu_render_two_columns_fixed() {
   local split total left_count right_count
   local i left_key left_label right_key right_label
   local left_num right_num left_color right_color
+  local max_left_len=0
   total="${#menu_items[@]}"
   split=$(( (total + 1) / 2 ))
   left_count="${split}"
   right_count=$(( total - split ))
+
+  # Hitung panjang label kolom kiri agar kolom kanan lurus sempurna
+  for (( i=0; i<left_count; i++ )); do
+    IFS='|' read -r left_key left_label <<<"${menu_items[$i]}"
+    if (( ${#left_label} > max_left_len )); then
+      max_left_len=${#left_label}
+    fi
+  done
+  local left_width=$(( max_left_len + 3 ))
+  if (( left_width < 25 )); then left_width=25; fi
 
   for (( i=0; i<left_count; i++ )); do
     IFS='|' read -r left_key left_label <<<"${menu_items[$i]}"
@@ -2812,8 +2823,8 @@ ui_menu_render_two_columns_fixed() {
       right_color="${UI_WARN}"
       if [[ "${right_key}" == "0" ]]; then right_color="${UI_ERR}"; fi
 
-      printf "  ${UI_BORDER}[${left_color}%2s${UI_BORDER}]${UI_RESET} ${UI_WHITE}%-23s${UI_RESET} ${UI_BORDER}[${right_color}%2s${UI_BORDER}]${UI_RESET} ${UI_WHITE}%s${UI_RESET}\n" \
-        "${left_num}" "${left_label}" "${right_num}" "${right_label}"
+      printf "  ${UI_BORDER}[${left_color}%2s${UI_BORDER}]${UI_RESET} ${UI_WHITE}%-*s${UI_RESET} ${UI_BORDER}[${right_color}%2s${UI_BORDER}]${UI_RESET} ${UI_WHITE}%s${UI_RESET}\n" \
+        "${left_num}" "${left_width}" "${left_label}" "${right_num}" "${right_label}"
     else
       printf "  ${UI_BORDER}[${left_color}%2s${UI_BORDER}]${UI_RESET} ${UI_WHITE}%s${UI_RESET}\n" \
         "${left_num}" "${left_label}"

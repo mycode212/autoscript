@@ -352,12 +352,12 @@ banner_reset_all() {
 tools_banner_menu() {
   local -a items=(
     "1|Lihat Banner Saat Ini"
-    "5|Set Banner Post-Login - Input Manual"
     "2|Set Banner SSH - Input Manual"
-    "6|Set Banner Post-Login - Template"
     "3|Set Banner SSH - Template (HTML)"
-    "7|Reset / Kosongkan Semua Banner"
     "4|Set Banner SSH - Unduh dari URL"
+    "5|Set Banner Post-Login - Input Manual"
+    "6|Set Banner Post-Login - Template"
+    "7|Reset / Kosongkan Semua Banner"
     "0|Back"
   )
   while true; do
